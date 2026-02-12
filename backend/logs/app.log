@@ -1,0 +1,52 @@
+2026-02-12 12:16:11,127 - app - ERROR - Exception on /api/anchors [GET]
+Traceback (most recent call last):
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask_cors\extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\kuan\mycode\live-record\backend\app\api\routes.py", line 19, in get_anchors
+    db = get_db()
+         ^^^^^^^^
+  File "C:\kuan\mycode\live-record\backend\app\api\routes.py", line 12, in get_db
+    return next(db.get_db())
+                ^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask_sqlalchemy\extension.py", line 1008, in __getattr__
+    raise AttributeError(name)
+AttributeError: get_db
+2026-02-12 12:17:45,115 - app - ERROR - Exception on /api/anchors [GET]
+Traceback (most recent call last):
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask_cors\extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\kuan\mycode\live-record\backend\app\api\routes.py", line 19, in get_anchors
+    'id': anchor.id,
+     ^^^^^^^^
+  File "C:\kuan\mycode\live-record\backend\app\api\routes.py", line 12, in get_db
+    # 主播管理接口
+                ^^^
+  File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask_sqlalchemy\extension.py", line 1008, in __getattr__
+    raise AttributeError(name)
+AttributeError: get_db
