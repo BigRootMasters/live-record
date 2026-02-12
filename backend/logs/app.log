@@ -50,3 +50,12 @@ Traceback (most recent call last):
   File "C:\Users\kuan\AppData\Roaming\Python\Python312\site-packages\flask_sqlalchemy\extension.py", line 1008, in __getattr__
     raise AttributeError(name)
 AttributeError: get_db
+2026-02-12 15:21:50,427 - werkzeug - INFO - 3644 - 11108 - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.11:5000
+2026-02-12 15:21:50,428 - werkzeug - INFO - 3644 - 11108 - [33mPress CTRL+C to quit[0m
+2026-02-12 15:22:09,548 - werkzeug - INFO - 3644 - 23564 - 127.0.0.1 - - [12/Feb/2026 15:22:09] "GET /health HTTP/1.1" 200 -
+2026-02-12 15:22:30,839 - werkzeug - INFO - 3644 - 21056 - 127.0.0.1 - - [12/Feb/2026 15:22:30] "GET /api/anchors HTTP/1.1" 200 -
+2026-02-12 15:22:47,944 - werkzeug - INFO - 3644 - 20364 - 127.0.0.1 - - [12/Feb/2026 15:22:47] "GET /api/recordings HTTP/1.1" 200 -
+2026-02-12 15:23:09,282 - werkzeug - INFO - 3644 - 20780 - 127.0.0.1 - - [12/Feb/2026 15:23:09] "GET /api/summaries HTTP/1.1" 200 -

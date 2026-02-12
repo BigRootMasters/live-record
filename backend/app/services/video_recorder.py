@@ -1,6 +1,8 @@
-import subprocess
-import logging
 import os
+import subprocess
+import time
+import logging
+import traceback
 from datetime import datetime
 from app.models import db, Recording
 from dotenv import load_dotenv
@@ -17,6 +19,8 @@ class VideoRecorder:
     def __init__(self):
         self.recording_quality = os.getenv('RECORDING_QUALITY', '720p')
         self.recording_processes = {}
+        self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 3600))  # 最大录制时长
+        self.cleanup_video = os.getenv('CLEANUP_VIDEO', 'True').lower() == 'true'  # 是否清理视频文件
     
     def start_recording(self, recording_id, stream_url, output_path):
         """开始录制视频"""
@@ -26,17 +30,15 @@ class VideoRecorder:
         output_dir = os.path.dirname(output_path)
         os.makedirs(output_dir, exist_ok=True)
         
-        # 根据录制质量设置参数
-        quality_params = self._get_quality_params()
-        
         # 构建FFmpeg命令
         cmd = [
             'ffmpeg',
             '-i', stream_url,
             '-c:v', 'copy',  # 复制视频流，不重新编码
             '-c:a', 'copy',  # 复制音频流，不重新编码
-            '-t', '3600',  # 最大录制时长1小时
+            '-t', str(self.max_recording_duration),  # 最大录制时长
             '-y',  # 覆盖已存在的文件
+            '-loglevel', 'error',  # 只记录错误
             output_path
         ]
         
@@ -88,15 +90,6 @@ class VideoRecorder:
         else:
             return False
     
-    def _get_quality_params(self):
-        """根据录制质量获取参数"""
-        quality_map = {
-            '480p': {'video_bitrate': '1000k', 'audio_bitrate': '128k'},
-            '720p': {'video_bitrate': '2000k', 'audio_bitrate': '192k'},
-            '1080p': {'video_bitrate': '4000k', 'audio_bitrate': '256k'}
-        }
-        return quality_map.get(self.recording_quality, quality_map['720p'])
-    
     def get_video_duration(self, video_path):
         """获取视频时长（秒）"""
         if not os.path.exists(video_path):
@@ -135,10 +128,9 @@ class VideoRecorder:
         """处理录制完成的视频"""
         logger.info(f'Processing recording: {recording_id}')
         
-        # 获取录制记录
-        db_session = next(db.get_db())
         try:
-            recording = db_session.query(Recording).filter_by(id=recording_id).first()
+            # 获取录制记录
+            recording = Recording.query.filter_by(id=recording_id).first()
             if not recording:
                 logger.error(f'Recording not found: {recording_id}')
                 return False
@@ -153,15 +145,62 @@ class VideoRecorder:
             recording.status = 'completed'
             recording.end_time = datetime.now()
             
-            db_session.commit()
+            db.session.commit()
             logger.info(f'Recording {recording_id} processed successfully')
             return True
         except Exception as e:
             logger.error(f'Error processing recording: {e}')
-            db_session.rollback()
+            db.session.rollback()
             return False
-        finally:
-            db_session.close()
+    
+    def cleanup_recording(self, recording_id):
+        """清理录制文件"""
+        logger.info(f'Cleaning up recording: {recording_id}')
+        
+        try:
+            # 获取录制记录
+            recording = Recording.query.filter_by(id=recording_id).first()
+            if not recording:
+                logger.error(f'Recording not found: {recording_id}')
+                return False
+            
+            # 清理视频文件
+            if self.cleanup_video and recording.video_path and os.path.exists(recording.video_path):
+                try:
+                    os.remove(recording.video_path)
+                    recording.video_path = None
+                    db.session.commit()
+                    logger.info(f'Cleaned up video file for recording {recording_id}')
+                except Exception as e:
+                    logger.error(f'Error cleaning up video file: {e}')
+            
+            return True
+        except Exception as e:
+            logger.error(f'Error cleaning up recording: {e}')
+            db.session.rollback()
+            return False
+    
+    def cleanup_old_recordings(self, days=7):
+        """清理旧的录制文件"""
+        logger.info(f'Cleaning up recordings older than {days} days')
+        
+        try:
+            cutoff_date = datetime.now() - timedelta(days=days)
+            old_recordings = Recording.query.filter(
+                Recording.end_time < cutoff_date,
+                Recording.status == 'completed'
+            ).all()
+            
+            cleaned_count = 0
+            for recording in old_recordings:
+                if self.cleanup_recording(recording.id):
+                    cleaned_count += 1
+            
+            logger.info(f'Cleaned up {cleaned_count} old recordings')
+            return cleaned_count
+        except Exception as e:
+            logger.error(f'Error cleaning up old recordings: {e}')
+            return 0
 
 # 创建录制服务实例
 video_recorder = VideoRecorder()

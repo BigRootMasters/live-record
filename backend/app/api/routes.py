@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request
 from app.models import db, Anchor, Recording, Summary
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import desc
 from datetime import datetime
 import os
 
@@ -14,17 +15,36 @@ bp = Blueprint('api', __name__, url_prefix='/api')
 @bp.route('/anchors', methods=['GET'])
 def get_anchors():
     """获取所有主播列表"""
-    anchors = Anchor.query.all()
-    return jsonify([{
-        'id': anchor.id,
-        'name': anchor.name,
-        'douyin_id': anchor.douyin_id,
-        'room_id': anchor.room_id,
-        'avatar_url': anchor.avatar_url,
-        'is_followed': anchor.is_followed,
-        'created_at': anchor.created_at.isoformat() if anchor.created_at else None,
-        'updated_at': anchor.updated_at.isoformat() if anchor.updated_at else None
-    } for anchor in anchors]), 200
+    # 支持分页和过滤
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    is_followed = request.args.get('is_followed', type=lambda x: x.lower() == 'true')
+    
+    # 构建查询
+    query = Anchor.query
+    if is_followed is not None:
+        query = query.filter_by(is_followed=is_followed)
+    
+    # 执行查询
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    anchors = pagination.items
+    
+    return jsonify({
+        'items': [{
+            'id': anchor.id,
+            'name': anchor.name,
+            'douyin_id': anchor.douyin_id,
+            'room_id': anchor.room_id,
+            'avatar_url': anchor.avatar_url,
+            'is_followed': anchor.is_followed,
+            'created_at': anchor.created_at.isoformat() if anchor.created_at else None,
+            'updated_at': anchor.updated_at.isoformat() if anchor.updated_at else None
+        } for anchor in anchors],
+        'total': pagination.total,
+        'page': page,
+        'per_page': per_page,
+        'pages': pagination.pages
+    }), 200
 
 @bp.route('/anchors', methods=['POST'])
 def add_anchor():
@@ -108,23 +128,51 @@ def delete_anchor(anchor_id):
 @bp.route('/recordings', methods=['GET'])
 def get_recordings():
     """获取所有录制记录"""
-    recordings = Recording.query.all()
-    return jsonify([{
-        'id': recording.id,
-        'anchor_id': recording.anchor_id,
-        'video_path': recording.video_path,
-        'video_duration': recording.video_duration,
-        'start_time': recording.start_time.isoformat() if recording.start_time else None,
-        'end_time': recording.end_time.isoformat() if recording.end_time else None,
-        'status': recording.status,
-        'created_at': recording.created_at.isoformat() if recording.created_at else None,
-        'updated_at': recording.updated_at.isoformat() if recording.updated_at else None
-    } for recording in recordings]), 200
+    # 支持分页和过滤
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    anchor_id = request.args.get('anchor_id', type=int)
+    status = request.args.get('status')
+    
+    # 构建查询
+    query = Recording.query
+    if anchor_id:
+        query = query.filter_by(anchor_id=anchor_id)
+    if status:
+        query = query.filter_by(status=status)
+    
+    # 按开始时间倒序排列
+    query = query.order_by(desc(Recording.start_time))
+    
+    # 执行查询
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    recordings = pagination.items
+    
+    return jsonify({
+        'items': [{
+            'id': recording.id,
+            'anchor_id': recording.anchor_id,
+            'video_path': recording.video_path,
+            'video_duration': recording.video_duration,
+            'start_time': recording.start_time.isoformat() if recording.start_time else None,
+            'end_time': recording.end_time.isoformat() if recording.end_time else None,
+            'status': recording.status,
+            'created_at': recording.created_at.isoformat() if recording.created_at else None,
+            'updated_at': recording.updated_at.isoformat() if recording.updated_at else None
+        } for recording in recordings],
+        'total': pagination.total,
+        'page': page,
+        'per_page': per_page,
+        'pages': pagination.pages
+    }), 200
 
 @bp.route('/recordings/<int:recording_id>', methods=['GET'])
 def get_recording(recording_id):
     """获取单个录制记录详情"""
-    recording = Recording.query.filter_by(id=recording_id).first()
+    recording = Recording.query.options(
+        joinedload(Recording.anchor),
+        joinedload(Recording.summary)
+    ).filter_by(id=recording_id).first()
     if not recording:
         return jsonify({'error': 'Recording not found'}), 404
     
@@ -159,24 +207,56 @@ def get_recording(recording_id):
 @bp.route('/summaries', methods=['GET'])
 def get_summaries():
     """获取所有摘要列表"""
-    summaries = Summary.query.all()
-    return jsonify([{
-        'id': summary.id,
-        'recording_id': summary.recording_id,
-        'content': summary.content,
-        'core_points': summary.core_points,
-        'market_analysis': summary.market_analysis,
-        'investment_advice': summary.investment_advice,
-        'keywords': summary.keywords,
-        'status': summary.status,
-        'created_at': summary.created_at.isoformat() if summary.created_at else None,
-        'updated_at': summary.updated_at.isoformat() if summary.updated_at else None
-    } for summary in summaries]), 200
+    # 支持分页和过滤
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    anchor_id = request.args.get('anchor_id', type=int)
+    
+    # 构建查询
+    query = Summary.query.join(Recording)
+    if anchor_id:
+        query = query.filter(Recording.anchor_id == anchor_id)
+    
+    # 按创建时间倒序排列
+    query = query.order_by(desc(Summary.created_at))
+    
+    # 执行查询
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    summaries = pagination.items
+    
+    return jsonify({
+        'items': [{
+            'id': summary.id,
+            'recording_id': summary.recording_id,
+            'content': summary.content,
+            'core_points': summary.core_points,
+            'market_analysis': summary.market_analysis,
+            'investment_advice': summary.investment_advice,
+            'keywords': summary.keywords,
+            'status': summary.status,
+            'created_at': summary.created_at.isoformat() if summary.created_at else None,
+            'updated_at': summary.updated_at.isoformat() if summary.updated_at else None,
+            'recording': {
+                'id': summary.recording.id,
+                'start_time': summary.recording.start_time.isoformat() if summary.recording.start_time else None,
+                'anchor': {
+                    'id': summary.recording.anchor.id,
+                    'name': summary.recording.anchor.name
+                } if summary.recording.anchor else None
+            } if summary.recording else None
+        } for summary in summaries],
+        'total': pagination.total,
+        'page': page,
+        'per_page': per_page,
+        'pages': pagination.pages
+    }), 200
 
 @bp.route('/summaries/<int:summary_id>', methods=['GET'])
 def get_summary(summary_id):
     """获取单个摘要详情"""
-    summary = Summary.query.filter_by(id=summary_id).first()
+    summary = Summary.query.options(
+        joinedload(Summary.recording).joinedload(Recording.anchor)
+    ).filter_by(id=summary_id).first()
     if not summary:
         return jsonify({'error': 'Summary not found'}), 404
     
@@ -209,7 +289,7 @@ def get_summary(summary_id):
 def get_system_status():
     """获取系统状态"""
     # 检查存储使用情况
-    video_storage_path = os.getenv('VIDEO_STORAGE_PATH', './data/videos')
+    video_storage_path = os.getenv('VIDEO_STORAGE_PATH', './data/temp_videos')
     summary_storage_path = os.getenv('SUMMARY_STORAGE_PATH', './data/summaries')
     
     # 计算存储使用情况

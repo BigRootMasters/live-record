@@ -5,7 +5,9 @@ python-dotenv
 SQLAlchemy
 requests
 beautifulsoup4
-openai
 wechatpy
 python-json-logger
 tqdm
+whisper
+jieba
+summa
