@@ -41,7 +41,10 @@ export const recordingAPI = {
   getRecordings: () => api.get('/recordings'),
   
   // 获取单个录制记录详情
-  getRecording: (id) => api.get(`/recordings/${id}`)
+  getRecording: (id) => api.get(`/recordings/${id}`),
+
+  // 手动触发转写
+  transcribeRecording: (id) => api.post(`/recordings/${id}/transcribe`)
 }
 
 // 摘要API
@@ -50,7 +53,10 @@ export const summaryAPI = {
   getSummaries: () => api.get('/summaries'),
   
   // 获取单个摘要详情
-  getSummary: (id) => api.get(`/summaries/${id}`)
+  getSummary: (id) => api.get(`/summaries/${id}`),
+
+  // 手动发送通知
+  notifySummary: (id) => api.post(`/summaries/${id}/notify`)
 }
 
 // 系统状态API

@@ -57,11 +57,13 @@ root_logger.setLevel(getattr(logging, log_level))
 
 # 导入数据库和模型
 from app.models import db, Anchor, Recording, Summary
+from app.services.anchor_sync_service import anchor_sync_service
 db.init_app(app)
 
 # 创建数据库表
 with app.app_context():
     db.create_all()
+    anchor_sync_service.sync()
 
 # 全局错误处理
 @app.errorhandler(404)
@@ -94,4 +96,5 @@ def index():
     return jsonify({'message': 'Welcome to Douyin Live Recorder API'}), 200
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    port = int(os.getenv('PORT', '5000'))
+    app.run(host='0.0.0.0', port=port, debug=False)

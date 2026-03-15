@@ -59,3 +59,20 @@ AttributeError: get_db
 2026-02-12 15:22:30,839 - werkzeug - INFO - 3644 - 21056 - 127.0.0.1 - - [12/Feb/2026 15:22:30] "GET /api/anchors HTTP/1.1" 200 -
 2026-02-12 15:22:47,944 - werkzeug - INFO - 3644 - 20364 - 127.0.0.1 - - [12/Feb/2026 15:22:47] "GET /api/recordings HTTP/1.1" 200 -
 2026-02-12 15:23:09,282 - werkzeug - INFO - 3644 - 20780 - 127.0.0.1 - - [12/Feb/2026 15:23:09] "GET /api/summaries HTTP/1.1" 200 -
+2026-03-15 22:51:12,427 - app.services.anchor_sync_service - INFO - 60160 - 8384180480 - Anchor config sync complete: total=1 created=1 updated=0 disabled=1
+2026-03-15 22:51:12,427 - app.services.anchor_sync_service - INFO - 60160 - 8384180480 - Anchor config sync complete: total=1 created=1 updated=0 disabled=1
+2026-03-15 22:56:07,252 - app.services.anchor_sync_service - INFO - 60686 - 8384180480 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-15 22:56:07,252 - app.services.anchor_sync_service - INFO - 60686 - 8384180480 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-15 22:56:44,204 - app.services.anchor_sync_service - INFO - 60808 - 8384180480 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-15 22:56:44,204 - app.services.anchor_sync_service - INFO - 60808 - 8384180480 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-15 23:02:09,787 - app.services.anchor_sync_service - INFO - 61788 - 8384180480 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-15 23:02:09,787 - app.services.anchor_sync_service - INFO - 61788 - 8384180480 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-15 23:02:12,622 - werkzeug - INFO - 61788 - 8384180480 - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5001
+ * Running on http://192.168.1.8:5001
+2026-03-15 23:02:12,622 - werkzeug - INFO - 61788 - 8384180480 - [33mPress CTRL+C to quit[0m
+2026-03-15 23:02:47,735 - werkzeug - INFO - 61788 - 6106230784 - 127.0.0.1 - - [15/Mar/2026 23:02:47] "GET /health HTTP/1.1" 200 -
+2026-03-15 23:02:58,622 - werkzeug - INFO - 61788 - 6106230784 - 127.0.0.1 - - [15/Mar/2026 23:02:58] "GET /api/anchors HTTP/1.1" 200 -
+2026-03-15 23:03:15,065 - werkzeug - INFO - 61788 - 6106230784 - 127.0.0.1 - - [15/Mar/2026 23:03:15] "GET /api/recordings HTTP/1.1" 200 -
+2026-03-15 23:03:24,312 - werkzeug - INFO - 61788 - 6106230784 - 127.0.0.1 - - [15/Mar/2026 23:03:24] "GET /api/summaries HTTP/1.1" 200 -

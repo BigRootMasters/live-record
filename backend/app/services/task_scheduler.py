@@ -128,11 +128,11 @@ class TaskScheduler:
                 time.sleep(3600)
     
     def _analyze_pending_recordings(self):
-        """分析待处理的录制"""
-        logger.info('Checking for pending recordings to analyze')
+        """分析待处理的录制并生成文字稿"""
+        logger.info('Checking for completed recordings that need transcription')
         
         try:
-            # 查找已完成但未分析的录制
+            # 查找已完成且尚未生成文字稿的录制
             pending_recordings = Recording.query.filter_by(
                 status='completed'
             ).outerjoin(
@@ -141,20 +141,19 @@ class TaskScheduler:
                 Summary.id == None
             ).all()
             
-            logger.info(f'Found {len(pending_recordings)} pending recordings to analyze')
+            logger.info(f'Found {len(pending_recordings)} recordings waiting for transcription')
             
             for recording in pending_recordings:
                 try:
-                    # 分析录制内容
+                    # 生成文字稿
                     success = content_analyzer.analyze_recording(recording.id)
                     if success:
-                        logger.info(f'Analyzed recording {recording.id} successfully')
-                        # 分析完成后清理录制文件
+                        logger.info(f'Transcribed recording {recording.id} successfully')
                         video_recorder.cleanup_recording(recording.id)
                     else:
-                        logger.error(f'Failed to analyze recording {recording.id}')
+                        logger.error(f'Failed to transcribe recording {recording.id}')
                 except Exception as e:
-                    logger.error(f'Error analyzing recording {recording.id}: {e}')
+                    logger.error(f'Error transcribing recording {recording.id}: {e}')
                 
                 # 避免同时分析太多录制，每次分析后休息一下
                 time.sleep(5)

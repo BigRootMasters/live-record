@@ -1,54 +1,36 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, Progress, List, Button, Space } from 'antd'
+import { Card, Row, Col, Statistic, Progress, List, Tag } from 'antd'
 import { UserOutlined, VideoCameraOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, AlertOutlined } from '@ant-design/icons'
-import axios from 'axios'
+import { summaryAPI, systemAPI } from '../api'
 
 function HomePage() {
   const [systemStatus, setSystemStatus] = useState(null)
   const [recentSummaries, setRecentSummaries] = useState([])
-  const [loading, setLoading] = useState(true)
-
   // 获取系统状态
   useEffect(() => {
     const fetchSystemStatus = async () => {
       try {
-        const response = await axios.get('/api/system/status')
-        setSystemStatus(response.data)
+        const data = await systemAPI.getSystemStatus()
+        setSystemStatus(data)
       } catch (error) {
         console.error('获取系统状态失败:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
     fetchSystemStatus()
   }, [])
 
-  // 模拟最近摘要数据
   useEffect(() => {
-    setRecentSummaries([
-      {
-        id: 1,
-        anchorName: '财经主播张三',
-        date: '2026-02-12',
-        content: '今天分析了当前股市走势，认为新能源板块还有上涨空间...',
-        status: 'completed'
-      },
-      {
-        id: 2,
-        anchorName: '财经主播李四',
-        date: '2026-02-11',
-        content: '讨论了半导体行业的发展前景，建议关注龙头企业...',
-        status: 'completed'
-      },
-      {
-        id: 3,
-        anchorName: '财经主播王五',
-        date: '2026-02-10',
-        content: '解读了最新的经济数据，认为经济复苏势头良好...',
-        status: 'completed'
+    const fetchRecentSummaries = async () => {
+      try {
+        const data = await summaryAPI.getSummaries()
+        setRecentSummaries((data.items || []).slice(0, 3))
+      } catch (error) {
+        console.error('获取最近文字稿失败:', error)
       }
-    ])
+    }
+
+    fetchRecentSummaries()
   }, [])
 
   // 计算存储使用百分比
@@ -84,7 +66,7 @@ function HomePage() {
               </Col>
               <Col xs={24} sm={12} md={8}>
                 <Statistic
-                  title="内容摘要"
+                  title="文字稿数量"
                   value={systemStatus?.database.summary_count || 0}
                   prefix={<FileTextOutlined />}
                   suffix="条"
@@ -107,7 +89,7 @@ function HomePage() {
                 </div>
                 <div className="storage-item">
                   <div className="storage-label">
-                    <span>摘要文件</span>
+                    <span>文字稿文件</span>
                     <span>{storageUsage.summary} MB</span>
                   </div>
                   <Progress percent={storageUsage.percentage} size="small" />
@@ -127,27 +109,24 @@ function HomePage() {
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="最近摘要" bordered={false}>
+          <Card title="最近文字稿" bordered={false}>
             <List
               dataSource={recentSummaries}
               renderItem={(item) => (
-                <List.Item
-                  actions={[
-                    <Button size="small" type="primary">查看详情</Button>
-                  ]}
-                >
+                <List.Item>
                   <List.Item.Meta
                     title={
                       <div className="summary-title">
-                        <span>{item.anchorName}</span>
-                        <span className="summary-date">{item.date}</span>
+                        <span>{item.recording?.anchor?.name || '-'}</span>
+                        <span className="summary-date">{item.recording?.start_time ? new Date(item.recording.start_time).toLocaleDateString() : '-'}</span>
                       </div>
                     }
-                    description={item.content}
+                    description={item.content_preview || item.content || '暂无文字稿'}
                   />
+                  <Tag color="blue">{item.status || 'completed'}</Tag>
                 </List.Item>
               )}
-              locale={{ emptyText: '暂无摘要数据' }}
+              locale={{ emptyText: '暂无文字稿数据' }}
             />
           </Card>
         </Col>

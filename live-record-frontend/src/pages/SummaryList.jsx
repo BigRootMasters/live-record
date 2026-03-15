@@ -1,19 +1,25 @@
-import React, { useState, useEffect } from 'react'
-import { Table, Button, Space, Tag, Popconfirm, message, DatePicker, Input, Modal, Descriptions, Spin } from 'antd'
-import { DeleteOutlined, MailOutlined, MessageOutlined, CopyOutlined } from '@ant-design/icons'
+import React, { useEffect, useState } from 'react'
+import { Button, Descriptions, Input, message, Modal, Space, Spin, Table, Tag } from 'antd'
+import { CopyOutlined, MessageOutlined } from '@ant-design/icons'
 import { summaryAPI } from '../api'
 
-const { Column } = Table
-const { RangePicker } = DatePicker
 const { Search } = Input
+
+const statusMeta = {
+  pending: { color: 'default', text: '待处理' },
+  processing: { color: 'processing', text: '转写中' },
+  completed: { color: 'green', text: '已生成' },
+  notified: { color: 'blue', text: '已通知' },
+  failed: { color: 'red', text: '失败' }
+}
 
 const SummaryList = () => {
   const [summaries, setSummaries] = useState([])
+  const [filteredSummaries, setFilteredSummaries] = useState([])
   const [selectedSummary, setSelectedSummary] = useState(null)
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  // 获取摘要列表
   useEffect(() => {
     fetchSummaries()
   }, [])
@@ -22,178 +28,161 @@ const SummaryList = () => {
     setLoading(true)
     try {
       const data = await summaryAPI.getSummaries()
-      setSummaries(data)
+      const items = data.items || []
+      setSummaries(items)
+      setFilteredSummaries(items)
     } catch (error) {
-      message.error('获取摘要列表失败')
-      console.error('获取摘要列表失败:', error)
+      message.error('获取文字稿列表失败')
+      console.error('获取文字稿列表失败:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  const showSummaryDetail = (summary) => {
-    setSelectedSummary(summary)
-    setIsModalVisible(true)
+  const showSummaryDetail = async (summary) => {
+    try {
+      const detail = await summaryAPI.getSummary(summary.id)
+      setSelectedSummary(detail)
+      setIsModalVisible(true)
+    } catch (error) {
+      message.error('获取文字稿详情失败')
+    }
   }
 
-  const handleCancel = () => {
-    setIsModalVisible(false)
-    setSelectedSummary(null)
+  const handleSearch = (value) => {
+    const keyword = value.trim().toLowerCase()
+    if (!keyword) {
+      setFilteredSummaries(summaries)
+      return
+    }
+
+    setFilteredSummaries(
+      summaries.filter((item) => {
+        const anchorName = item.recording?.anchor?.name?.toLowerCase() || ''
+        const content = item.content_preview?.toLowerCase() || ''
+        return anchorName.includes(keyword) || content.includes(keyword)
+      })
+    )
   }
 
   const handleCopy = (text) => {
-    navigator.clipboard.writeText(text)
-    message.success('内容已复制到剪贴板')
+    navigator.clipboard.writeText(text || '')
+    message.success('文字稿已复制到剪贴板')
   }
+
+  const columns = [
+    {
+      title: 'ID',
+      dataIndex: 'id',
+      key: 'id',
+      width: 80
+    },
+    {
+      title: '主播名称',
+      key: 'anchorName',
+      render: (_, record) => record.recording?.anchor?.name || '-'
+    },
+    {
+      title: '文字长度',
+      dataIndex: 'transcript_length',
+      key: 'transcript_length',
+      render: (value) => `${value || 0} 字`
+    },
+    {
+      title: '内容预览',
+      dataIndex: 'content_preview',
+      key: 'content_preview',
+      ellipsis: true
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const meta = statusMeta[status] || { color: 'default', text: status }
+        return <Tag color={meta.color}>{meta.text}</Tag>
+      }
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (value) => value ? new Date(value).toLocaleString() : '-'
+    },
+    {
+      title: '操作',
+      key: 'action',
+      render: (_, record) => (
+        <Space size="middle">
+          <Button onClick={() => showSummaryDetail(record)}>查看全文</Button>
+        </Space>
+      )
+    }
+  ]
 
   return (
     <div className="summary-list">
       <div className="page-header">
-        <h1>内容摘要</h1>
+        <h1>文字稿</h1>
         <div className="search-filters">
-          <Search placeholder="搜索主播名称" style={{ width: 200, marginRight: 16 }} />
-          <RangePicker style={{ marginRight: 16 }} />
-          <Button type="default">筛选</Button>
+          <Search
+            placeholder="搜索主播名称或内容"
+            style={{ width: 280 }}
+            onSearch={handleSearch}
+            allowClear
+          />
         </div>
       </div>
       <Spin spinning={loading}>
-        <Table dataSource={summaries} rowKey="id">
-          <Column title="ID" dataIndex="id" key="id" />
-          <Column 
-            title="主播名称" 
-            key="anchorName"
-            render={(record) => record.recording && record.recording.anchor ? record.recording.anchor.name : '-'} 
-          />
-          <Column title="内容" dataIndex="content" key="content" ellipsis />
-          <Column 
-            title="核心观点" 
-            dataIndex="core_points" 
-            key="core_points"
-            render={(corePoints) => (
-              <div>
-                {corePoints && corePoints.map((point, index) => (
-                  <div key={index} style={{ marginBottom: 4 }}>
-                    • {point}
-                  </div>
-                ))}
-              </div>
-            )}
-          />
-          <Column 
-            title="状态" 
-            dataIndex="status" 
-            key="status"
-            render={(status) => (
-              <Tag color={status === 'completed' ? 'green' : 'blue'}>
-                {status === 'completed' ? '已完成' : '生成中'}
-              </Tag>
-            )}
-          />
-          <Column 
-            title="创建时间" 
-            dataIndex="created_at" 
-            key="created_at"
-            render={(createdAt) => {
-              if (!createdAt) return '-';
-              return new Date(createdAt).toLocaleString();
-            }}
-          />
-          <Column 
-            title="更新时间" 
-            dataIndex="updated_at" 
-            key="updated_at"
-            render={(updatedAt) => {
-              if (!updatedAt) return '-';
-              return new Date(updatedAt).toLocaleString();
-            }}
-          />
-          <Column 
-            title="操作" 
-            key="action"
-            render={(_, record) => (
-              <Space size="middle">
-                <Button onClick={() => showSummaryDetail(record)}>
-                  查看详情
-                </Button>
-                <Button icon={<MailOutlined />}>
-                  发送邮件
-                </Button>
-                <Button icon={<MessageOutlined />}>
-                  发送微信
-                </Button>
-              </Space>
-            )}
-          />
-        </Table>
+        <Table dataSource={filteredSummaries} columns={columns} rowKey="id" />
       </Spin>
 
       <Modal
-        title={`摘要详情 - ID: ${selectedSummary?.id}`}
+        title={`文字稿详情 - ID: ${selectedSummary?.id}`}
         open={isModalVisible}
-        onCancel={handleCancel}
+        onCancel={() => {
+          setIsModalVisible(false)
+          setSelectedSummary(null)
+        }}
         footer={[
-          <Button key="cancel" onClick={handleCancel}>
-            关闭
-          </Button>,
           <Button key="copy" icon={<CopyOutlined />} onClick={() => handleCopy(selectedSummary?.content)}>
-            复制内容
+            复制全文
           </Button>,
-          <Button key="email" icon={<MailOutlined />} type="primary">
-            发送邮件
+          <Button key="close" onClick={() => setIsModalVisible(false)}>
+            关闭
           </Button>
         ]}
-        width={800}
+        width={900}
       >
         {selectedSummary && (
           <div>
-            <Descriptions bordered>
-              <Descriptions.Item label="录制ID">{selectedSummary.recording_id}</Descriptions.Item>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="主播">
+                {selectedSummary.recording?.anchor?.name || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag color={selectedSummary.status === 'completed' ? 'green' : 'blue'}>
-                  {selectedSummary.status === 'completed' ? '已完成' : '生成中'}
+                <Tag color={(statusMeta[selectedSummary.status] || {}).color || 'default'}>
+                  {(statusMeta[selectedSummary.status] || {}).text || selectedSummary.status}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
-                {selectedSummary.created_at ? new Date(selectedSummary.created_at).toLocaleString() : '-'}
+              <Descriptions.Item label="录制ID">{selectedSummary.recording_id}</Descriptions.Item>
+              <Descriptions.Item label="文字长度">{selectedSummary.transcript_length || 0} 字</Descriptions.Item>
+              <Descriptions.Item label="开始时间">
+                {selectedSummary.recording?.start_time ? new Date(selectedSummary.recording.start_time).toLocaleString() : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="更新时间">
-                {selectedSummary.updated_at ? new Date(selectedSummary.updated_at).toLocaleString() : '-'}
+              <Descriptions.Item label="结束时间">
+                {selectedSummary.recording?.end_time ? new Date(selectedSummary.recording.end_time).toLocaleString() : '-'}
               </Descriptions.Item>
             </Descriptions>
+
             <div style={{ marginTop: 20 }}>
-              <h3>核心观点</h3>
-              <ul style={{ marginLeft: 20 }}>
-                {selectedSummary.core_points && selectedSummary.core_points.map((point, index) => (
-                  <li key={index} style={{ marginBottom: 8 }}>{point}</li>
-                ))}
-              </ul>
+              <Space style={{ marginBottom: 12 }}>
+                <Tag icon={<MessageOutlined />}>可由企业微信机器人发送通知</Tag>
+              </Space>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8 }}>
+                {selectedSummary.content || '暂无文字稿内容'}
+              </div>
             </div>
-            <div style={{ marginTop: 20 }}>
-              <h3>详细摘要</h3>
-              <div style={{ lineHeight: 1.8 }}>{selectedSummary.content}</div>
-            </div>
-            {selectedSummary.market_analysis && (
-              <div style={{ marginTop: 20 }}>
-                <h3>市场分析</h3>
-                <div style={{ lineHeight: 1.8 }}>{selectedSummary.market_analysis}</div>
-              </div>
-            )}
-            {selectedSummary.investment_advice && (
-              <div style={{ marginTop: 20 }}>
-                <h3>投资建议</h3>
-                <div style={{ lineHeight: 1.8 }}>{selectedSummary.investment_advice}</div>
-              </div>
-            )}
-            {selectedSummary.keywords && (
-              <div style={{ marginTop: 20 }}>
-                <h3>关键词</h3>
-                <Space wrap>
-                  {selectedSummary.keywords.map((keyword, index) => (
-                    <Tag key={index}>{keyword}</Tag>
-                  ))}
-                </Space>
-              </div>
-            )}
           </div>
         )}
       </Modal>

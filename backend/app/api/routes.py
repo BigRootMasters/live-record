@@ -1,14 +1,38 @@
 from flask import Blueprint, jsonify, request
 from app.models import db, Anchor, Recording, Summary
+from app.services.anchor_config_service import anchor_config_service
+from app.services.content_analyzer import content_analyzer
+from app.services.douyin_live_resolver import douyin_live_resolver
+from app.services.notification_service import notification_service
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 # 创建蓝图
 bp = Blueprint('api', __name__, url_prefix='/api')
 
 # 数据库会话直接使用db.session
+
+
+def serialize_anchor(anchor):
+    config = anchor_config_service.get_by_douyin_id(anchor.douyin_id) or {}
+    return {
+        'id': anchor.id,
+        'name': anchor.name,
+        'douyin_id': anchor.douyin_id,
+        'room_id': anchor.room_id,
+        'avatar_url': anchor.avatar_url,
+        'is_followed': anchor.is_followed,
+        'created_at': anchor.created_at.isoformat() if anchor.created_at else None,
+        'updated_at': anchor.updated_at.isoformat() if anchor.updated_at else None,
+        'config': {
+            'anchor_id': config.get('anchor_id'),
+            'profile_url': config.get('profile_url'),
+            'live_url': config.get('live_url'),
+            'notes': config.get('notes'),
+        }
+    }
 
 # 主播管理接口
 
@@ -30,16 +54,7 @@ def get_anchors():
     anchors = pagination.items
     
     return jsonify({
-        'items': [{
-            'id': anchor.id,
-            'name': anchor.name,
-            'douyin_id': anchor.douyin_id,
-            'room_id': anchor.room_id,
-            'avatar_url': anchor.avatar_url,
-            'is_followed': anchor.is_followed,
-            'created_at': anchor.created_at.isoformat() if anchor.created_at else None,
-            'updated_at': anchor.updated_at.isoformat() if anchor.updated_at else None
-        } for anchor in anchors],
+        'items': [serialize_anchor(anchor) for anchor in anchors],
         'total': pagination.total,
         'page': page,
         'per_page': per_page,
@@ -71,13 +86,7 @@ def add_anchor():
     db.session.commit()
     
     return jsonify({
-        'id': new_anchor.id,
-        'name': new_anchor.name,
-        'douyin_id': new_anchor.douyin_id,
-        'room_id': new_anchor.room_id,
-        'avatar_url': new_anchor.avatar_url,
-        'is_followed': new_anchor.is_followed,
-        'created_at': new_anchor.created_at.isoformat() if new_anchor.created_at else None
+        **serialize_anchor(new_anchor)
     }), 201
 
 @bp.route('/anchors/<int:anchor_id>', methods=['PUT'])
@@ -101,15 +110,7 @@ def update_anchor(anchor_id):
     
     db.session.commit()
     
-    return jsonify({
-        'id': anchor.id,
-        'name': anchor.name,
-        'douyin_id': anchor.douyin_id,
-        'room_id': anchor.room_id,
-        'avatar_url': anchor.avatar_url,
-        'is_followed': anchor.is_followed,
-        'updated_at': anchor.updated_at.isoformat() if anchor.updated_at else None
-    }), 200
+    return jsonify(serialize_anchor(anchor)), 200
 
 @bp.route('/anchors/<int:anchor_id>', methods=['DELETE'])
 def delete_anchor(anchor_id):
@@ -158,7 +159,12 @@ def get_recordings():
             'end_time': recording.end_time.isoformat() if recording.end_time else None,
             'status': recording.status,
             'created_at': recording.created_at.isoformat() if recording.created_at else None,
-            'updated_at': recording.updated_at.isoformat() if recording.updated_at else None
+            'updated_at': recording.updated_at.isoformat() if recording.updated_at else None,
+            'anchor': {
+                'id': recording.anchor.id,
+                'name': recording.anchor.name,
+                'douyin_id': recording.anchor.douyin_id
+            } if recording.anchor else None
         } for recording in recordings],
         'total': pagination.total,
         'page': page,
@@ -198,9 +204,88 @@ def get_recording(recording_id):
             'market_analysis': recording.summary.market_analysis,
             'investment_advice': recording.summary.investment_advice,
             'keywords': recording.summary.keywords,
-            'status': recording.summary.status
+            'status': recording.summary.status,
+            'transcript_length': len(recording.summary.content or '')
         } if recording.summary else None
     }), 200
+
+@bp.route('/recordings/<int:recording_id>/transcribe', methods=['POST'])
+def transcribe_recording(recording_id):
+    """手动触发某条录制的转写流程"""
+    recording = Recording.query.filter_by(id=recording_id).first()
+    if not recording:
+        return jsonify({'error': 'Recording not found'}), 404
+
+    if recording.status == 'recording':
+        return jsonify({'error': 'Recording is still in progress'}), 400
+
+    success = content_analyzer.analyze_recording(recording_id)
+    if not success:
+        db.session.refresh(recording)
+        return jsonify({
+            'success': False,
+            'message': 'Transcription failed',
+            'recording_id': recording.id,
+            'status': recording.status
+        }), 500
+
+    updated_recording = Recording.query.options(joinedload(Recording.summary)).filter_by(id=recording_id).first()
+    return jsonify({
+        'success': True,
+        'message': 'Transcription completed',
+        'recording_id': updated_recording.id,
+        'status': updated_recording.status,
+        'summary_id': updated_recording.summary.id if updated_recording and updated_recording.summary else None
+    }), 200
+
+@bp.route('/recordings/test', methods=['POST'])
+def create_test_recording():
+    """创建一条用于自测的录制记录"""
+    data = request.json or {}
+    anchor_id = data.get('anchor_id')
+    video_path = data.get('video_path')
+    start_time_raw = data.get('start_time')
+    duration_seconds = data.get('duration_seconds', 3600)
+
+    if not anchor_id or not video_path:
+        return jsonify({'error': 'anchor_id and video_path are required'}), 400
+
+    anchor = Anchor.query.filter_by(id=anchor_id).first()
+    if not anchor:
+        return jsonify({'error': 'Anchor not found'}), 404
+
+    if not os.path.exists(video_path):
+        return jsonify({'error': f'Video file not found: {video_path}'}), 400
+
+    try:
+        if start_time_raw:
+            start_time = datetime.fromisoformat(start_time_raw)
+        else:
+            start_time = datetime.now() - timedelta(seconds=duration_seconds)
+    except ValueError:
+        return jsonify({'error': 'start_time must be ISO format'}), 400
+
+    recording = Recording(
+        anchor_id=anchor.id,
+        video_path=video_path,
+        video_duration=duration_seconds,
+        start_time=start_time,
+        end_time=start_time + timedelta(seconds=duration_seconds),
+        status='completed'
+    )
+
+    db.session.add(recording)
+    db.session.commit()
+
+    return jsonify({
+        'id': recording.id,
+        'anchor_id': recording.anchor_id,
+        'video_path': recording.video_path,
+        'video_duration': recording.video_duration,
+        'start_time': recording.start_time.isoformat() if recording.start_time else None,
+        'end_time': recording.end_time.isoformat() if recording.end_time else None,
+        'status': recording.status
+    }), 201
 
 # 摘要管理接口
 
@@ -229,6 +314,8 @@ def get_summaries():
             'id': summary.id,
             'recording_id': summary.recording_id,
             'content': summary.content,
+            'content_preview': (summary.content or '')[:120],
+            'transcript_length': len(summary.content or ''),
             'core_points': summary.core_points,
             'market_analysis': summary.market_analysis,
             'investment_advice': summary.investment_advice,
@@ -264,6 +351,7 @@ def get_summary(summary_id):
         'id': summary.id,
         'recording_id': summary.recording_id,
         'content': summary.content,
+        'transcript_length': len(summary.content or ''),
         'core_points': summary.core_points,
         'market_analysis': summary.market_analysis,
         'investment_advice': summary.investment_advice,
@@ -283,7 +371,46 @@ def get_summary(summary_id):
         } if summary.recording else None
     }), 200
 
+@bp.route('/summaries/<int:summary_id>/notify', methods=['POST'])
+def notify_summary(summary_id):
+    """手动发送某份文字稿的企业微信通知"""
+    summary = Summary.query.filter_by(id=summary_id).first()
+    if not summary:
+        return jsonify({'error': 'Summary not found'}), 404
+
+    success = notification_service.send_summary(summary_id)
+    if not success:
+        db.session.refresh(summary)
+        return jsonify({
+            'success': False,
+            'message': 'Notification failed',
+            'summary_id': summary.id,
+            'status': summary.status
+        }), 500
+
+    refreshed_summary = Summary.query.filter_by(id=summary_id).first()
+    return jsonify({
+        'success': True,
+        'message': 'Notification sent',
+        'summary_id': refreshed_summary.id,
+        'status': refreshed_summary.status
+    }), 200
+
 # 系统状态接口
+
+@bp.route('/live/resolve', methods=['POST'])
+def resolve_live_url():
+    """解析抖音直播间页面并返回可用流地址"""
+    data = request.json or {}
+    live_url = data.get('live_url')
+    if not live_url:
+        return jsonify({'error': 'live_url is required'}), 400
+
+    result = douyin_live_resolver.resolve(live_url)
+    if not result:
+        return jsonify({'error': 'Failed to resolve live url'}), 500
+
+    return jsonify(result), 200
 
 @bp.route('/system/status', methods=['GET'])
 def get_system_status():

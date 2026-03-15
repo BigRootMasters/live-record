@@ -1,13 +1,8 @@
 import React from 'react'
-import { Layout, Menu, Button, Badge } from 'antd'
+import { Layout, Menu, Tag } from 'antd'
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { HomeOutlined, UserOutlined, VideoCameraOutlined, FileTextOutlined, SettingOutlined, PlusOutlined } from '@ant-design/icons'
+import { HomeOutlined, UserOutlined, VideoCameraOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons'
 import './App.css'
-import HomePage from './pages/HomePage'
-import AnchorManagement from './pages/AnchorManagement'
-import RecordingList from './pages/RecordingList'
-import SummaryList from './pages/SummaryList'
-import SystemSettings from './pages/SystemSettings'
 
 const { Header, Content, Sider } = Layout
 
@@ -35,7 +30,7 @@ function App() {
     {
       key: '/summaries',
       icon: <FileTextOutlined />,
-      label: <Link to="/summaries">内容摘要</Link>
+      label: <Link to="/summaries">文字稿</Link>
     },
     {
       key: '/settings',
@@ -49,9 +44,7 @@ function App() {
       <Header className="header">
         <div className="logo">抖音直播录制系统</div>
         <div className="header-actions">
-          <Button type="primary" icon={<PlusOutlined />}>
-            添加主播
-          </Button>
+          <Tag color="blue">配置文件驱动</Tag>
         </div>
       </Header>
       <Layout>
