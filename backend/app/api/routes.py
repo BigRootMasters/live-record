@@ -3,6 +3,8 @@ from app.models import db, Anchor, Recording, Summary
 from app.services.anchor_config_service import anchor_config_service
 from app.services.content_analyzer import content_analyzer
 from app.services.douyin_live_resolver import douyin_live_resolver
+from app.services.live_monitor import live_monitor
+from app.services.live_discovery_service import live_discovery_service
 from app.services.notification_service import notification_service
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
@@ -123,6 +125,104 @@ def delete_anchor(anchor_id):
     db.session.commit()
     
     return jsonify({'message': 'Anchor deleted successfully'}), 200
+
+@bp.route('/anchors/<int:anchor_id>/discover-live', methods=['GET'])
+def discover_anchor_live(anchor_id):
+    """根据固定主播身份自动发现当前直播入口"""
+    anchor = Anchor.query.filter_by(id=anchor_id).first()
+    if not anchor:
+        return jsonify({'error': 'Anchor not found'}), 404
+
+    result = live_discovery_service.discover_for_anchor(anchor)
+    status_code = 200 if not result.get('error') else 200
+    return jsonify(result), status_code
+
+@bp.route('/anchors/<int:anchor_id>/start-recording', methods=['POST'])
+def start_anchor_recording(anchor_id):
+    """手动触发主播的直播发现与录制启动"""
+    anchor = Anchor.query.filter_by(id=anchor_id, is_followed=True).first()
+    if not anchor:
+        return jsonify({'error': 'Anchor not found or not followed'}), 404
+
+    existing_recording = Recording.query.filter_by(
+        anchor_id=anchor.id,
+        status='recording'
+    ).order_by(desc(Recording.start_time)).first()
+    if existing_recording:
+        return jsonify({
+            'success': True,
+            'message': 'Recording already in progress',
+            'anchor_id': anchor.id,
+            'recording_id': existing_recording.id
+        }), 200
+
+    is_live, live_info = live_monitor._check_live_status(anchor)
+    if not is_live:
+        return jsonify({
+            'success': False,
+            'message': 'Anchor is not live',
+            'anchor_id': anchor.id,
+            'live_info': live_info
+        }), 200
+
+    recording = live_monitor.start_recording(anchor, live_info)
+    if not recording:
+        return jsonify({
+            'success': False,
+            'message': 'Failed to start recording',
+            'anchor_id': anchor.id,
+            'live_info': live_info
+        }), 500
+
+    return jsonify({
+        'success': True,
+        'message': 'Recording started',
+        'anchor_id': anchor.id,
+        'recording_id': recording.id,
+        'live_info': live_info
+    }), 200
+
+@bp.route('/recordings/<int:recording_id>/stop', methods=['POST'])
+def stop_recording(recording_id):
+    """手动停止一条正在进行的录制"""
+    recording = Recording.query.filter_by(id=recording_id).first()
+    if not recording:
+        return jsonify({'error': 'Recording not found'}), 404
+
+    if recording.status != 'recording':
+        return jsonify({
+            'success': False,
+            'message': 'Recording is not active',
+            'recording_id': recording.id,
+            'status': recording.status
+        }), 200
+
+    live_monitor.stop_recording(recording)
+    refreshed = Recording.query.options(joinedload(Recording.summary)).filter_by(id=recording_id).first()
+
+    if refreshed.status != 'completed':
+        return jsonify({
+            'success': False,
+            'message': 'Recording stopped but post-processing did not complete',
+            'recording_id': refreshed.id,
+            'status': refreshed.status,
+            'end_time': refreshed.end_time.isoformat() if refreshed.end_time else None,
+            'video_duration': refreshed.video_duration
+        }), 500
+
+    transcription_success = content_analyzer.analyze_recording(recording_id)
+    refreshed = Recording.query.options(joinedload(Recording.summary)).filter_by(id=recording_id).first()
+
+    return jsonify({
+        'success': transcription_success,
+        'message': 'Recording stopped and transcribed' if transcription_success else 'Recording stopped but transcription failed',
+        'recording_id': refreshed.id,
+        'status': refreshed.status,
+        'end_time': refreshed.end_time.isoformat() if refreshed.end_time else None,
+        'video_duration': refreshed.video_duration,
+        'summary_id': refreshed.summary.id if refreshed.summary else None,
+        'summary_status': refreshed.summary.status if refreshed.summary else None
+    }), 200 if transcription_success else 500
 
 # 录制管理接口
 

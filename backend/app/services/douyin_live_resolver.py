@@ -96,6 +96,12 @@ class DouyinLiveResolver:
         urls = []
         for match in re.findall(pattern, text):
             cleaned = match.replace('&amp;', '&')
+            cleaned = cleaned.replace('\\u0026', '&')
+            cleaned = cleaned.replace('\\u003d', '=')
+            cleaned = cleaned.replace('\\u002f', '/')
+            cleaned = cleaned.replace('\\u002F', '/')
+            cleaned = cleaned.replace('\\/', '/')
+            cleaned = cleaned.replace('\\', '')
             if cleaned not in urls:
                 urls.append(cleaned)
         return urls
@@ -104,12 +110,23 @@ class DouyinLiveResolver:
         if not urls:
             return None
 
-        quality_order = ['.m3u8?', '.flv?', '_origin', '.m3u8', '.flv', '_uhd', '_hd', '_sd5', '_ld5']
-        for marker in quality_order:
-            for url in urls:
+        quality_order = ['_origin', '_uhd', '_hd', '_sd', '_ld', '.m3u8?', '.flv?', '.m3u8', '.flv']
+
+        def score(url):
+            total = 0
+            if '_session_id=' in url:
+                total += 100
+            if url.startswith('https://'):
+                total += 40
+            if 'admin.douyincdn.com' in url:
+                total += 20
+            for idx, marker in enumerate(quality_order):
                 if marker in url:
-                    return url
-        return urls[0]
+                    total += max(0, 30 - idx)
+                    break
+            return total
+
+        return max(urls, key=score)
 
     def _infer_profile_name(self, url):
         if not url:

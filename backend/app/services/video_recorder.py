@@ -21,6 +21,12 @@ class VideoRecorder:
         self.recording_processes = {}
         self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 3600))  # 最大录制时长
         self.cleanup_video = os.getenv('CLEANUP_VIDEO', 'True').lower() == 'true'  # 是否清理视频文件
+        self.user_agent = os.getenv(
+            'DOUYIN_USER_AGENT',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+            '(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+        )
+        self.startup_check_seconds = int(os.getenv('FFMPEG_STARTUP_CHECK_SECONDS', 2))
     
     def start_recording(self, recording_id, stream_url, output_path):
         """开始录制视频"""
@@ -33,6 +39,19 @@ class VideoRecorder:
         # 构建FFmpeg命令
         cmd = [
             'ffmpeg',
+            '-nostdin',
+            '-user_agent', self.user_agent,
+            '-rw_timeout', '15000000',
+        ]
+
+        if '.m3u8' in stream_url:
+            # Douyin HLS often requires a browser-like referer/origin.
+            cmd.extend([
+                '-headers',
+                'Referer: https://live.douyin.com/\r\nOrigin: https://live.douyin.com\r\n'
+            ])
+
+        cmd.extend([
             '-i', stream_url,
             '-c:v', 'copy',  # 复制视频流，不重新编码
             '-c:a', 'copy',  # 复制音频流，不重新编码
@@ -40,22 +59,41 @@ class VideoRecorder:
             '-y',  # 覆盖已存在的文件
             '-loglevel', 'error',  # 只记录错误
             output_path
-        ]
+        ])
         
         try:
+            if not stream_url:
+                logger.error('Missing stream url for recording %s', recording_id)
+                return False
+
             # 启动录制进程
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                text=True,
                 shell=False
             )
-            
-            # 记录进程
+
+            # Quick health-check: if ffmpeg exits immediately, record the real reason.
+            time.sleep(self.startup_check_seconds)
+            if process.poll() is not None:
+                error_output = (process.stderr.read() or '').strip()
+                logger.error(
+                    'ffmpeg exited early for recording %s (code=%s): %s',
+                    recording_id,
+                    process.returncode,
+                    error_output or 'no stderr output'
+                )
+                return False
+
             self.recording_processes[recording_id] = process
             
             logger.info(f'Video recording started for recording ID: {recording_id}, output: {output_path}')
             return True
+        except FileNotFoundError:
+            logger.error('ffmpeg not found, cannot start recording')
+            return False
         except Exception as e:
             logger.error(f'Error starting video recording: {e}')
             return False
@@ -135,11 +173,16 @@ class VideoRecorder:
                 logger.error(f'Recording not found: {recording_id}')
                 return False
             
-            # 更新视频时长
-            if os.path.exists(recording.video_path):
-                duration = self.get_video_duration(recording.video_path)
-                recording.video_duration = duration
-                logger.info(f'Updated video duration for recording {recording_id}: {duration} seconds')
+            if not recording.video_path or not os.path.exists(recording.video_path):
+                logger.error('Recording file does not exist for %s', recording_id)
+                recording.status = 'failed'
+                recording.end_time = datetime.now()
+                db.session.commit()
+                return False
+
+            duration = self.get_video_duration(recording.video_path)
+            recording.video_duration = duration
+            logger.info(f'Updated video duration for recording {recording_id}: {duration} seconds')
             
             # 更新录制状态
             recording.status = 'completed'
@@ -168,8 +211,6 @@ class VideoRecorder:
             if self.cleanup_video and recording.video_path and os.path.exists(recording.video_path):
                 try:
                     os.remove(recording.video_path)
-                    recording.video_path = None
-                    db.session.commit()
                     logger.info(f'Cleaned up video file for recording {recording_id}')
                 except Exception as e:
                     logger.error(f'Error cleaning up video file: {e}')

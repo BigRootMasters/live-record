@@ -1,13 +1,14 @@
 [
   {
-    "name": "示例天霸哥讲财经",
-    "douyin_id": "MS4wLjABAAAAhIZOt35fbbF-cvx6M9FkcZk4S3uwcYJ2CS3MsfvF88GnIiCSC-wakC4woeCxiBNv",
-    "anchor_id": "4339130224091363",
-    "profile_url": "https://www.douyin.com/user/demo_anchor",
-    "live_url": "",
-    "room_id": "",
+    "name": "沐浴鹿（炉石传说）",
+    "douyin_id": "MS4wLjABAAAA0QQKK_1dm_D5yYqmB0eKK8xWWk1CxCnPD-YnEVPvtPO9IRLiy3wogPax-cteDfll",
+    "anchor_id": "3308897813673146",
+    "profile_url": "https://www.douyin.com/user/MS4wLjABAAAA0QQKK_1dm_D5yYqmB0eKK8xWWk1CxCnPD-YnEVPvtPO9IRLiy3wogPax-cteDfll",
+    "live_url": "https://live.douyin.com/30174903507",
+    "room_id": "30174903507",
     "avatar_url": "",
     "is_followed": true,
-    "notes": "这里保存主播固定身份信息，不保存某一场直播的临时链接"
+    "notes": "测试主播，已确认 anchor_id，可优先使用稳定直播入口"
   }
+
 ]

@@ -1,9 +1,9 @@
 import time
-import requests
 import logging
-import traceback
 from datetime import datetime
 from app.models import db, Anchor, Recording
+from app.services.live_discovery_service import live_discovery_service
+from app.services.video_recorder import video_recorder
 import os
 from dotenv import load_dotenv
 
@@ -72,7 +72,7 @@ class LiveMonitor:
         
         try:
             # 检查直播状态
-            is_live, live_info = self._check_live_status(anchor.douyin_id)
+            is_live, live_info = self._check_live_status(anchor)
             
             if is_live:
                 logger.info(f'Anchor {anchor.name} is live!')
@@ -125,75 +125,78 @@ class LiveMonitor:
         
         db.session.add(recording)
         db.session.commit()
-        
-        # 启动录制进程
-        # 这里需要实现实际的录制逻辑
-        # 由于抖音API的限制，这里提供一个模拟实现
-        # 实际项目中需要使用FFmpeg或其他工具来录制直播
-        
+
+        stream_candidates = []
+        for key in ['stream_url', 'hls_url', 'flv_url']:
+            value = (live_info or {}).get(key)
+            if value and value not in stream_candidates:
+                stream_candidates.append(value)
+
+        if not stream_candidates:
+            logger.error('No stream url available for anchor %s', anchor.name)
+            recording.status = 'failed'
+            recording.end_time = datetime.now()
+            db.session.commit()
+            return None
+
+        started = False
+        for candidate_url in stream_candidates:
+            started = video_recorder.start_recording(recording.id, candidate_url, video_path)
+            if started:
+                break
+
+        if not started:
+            logger.error(
+                'Failed to start recording for anchor %s using %d stream candidates',
+                anchor.name,
+                len(stream_candidates)
+            )
+            recording.status = 'failed'
+            recording.end_time = datetime.now()
+            db.session.commit()
+            return None
+
         logger.info(f'Recording started for anchor {anchor.name}, recording ID: {recording.id}')
+        return recording
     
     def stop_recording(self, recording):
         """停止录制直播"""
         logger.info(f'Stopping recording for recording ID: {recording.id}')
-        
-        # 更新录制状态
-        recording.end_time = datetime.now()
-        recording.status = 'completed'
-        
-        # 计算视频时长
-        # 这里需要实现实际的视频时长计算
-        # 实际项目中可以使用FFprobe来获取视频时长
-        recording.video_duration = 3600  # 模拟1小时
-        
-        db.session.commit()
+
+        stopped = video_recorder.stop_recording(recording.id)
+        if not stopped:
+            logger.warning('Recording process was not running for ID: %s', recording.id)
+
+        processed = video_recorder.process_recording(recording.id)
+        if not processed:
+            logger.warning('Post-processing failed for recording ID: %s', recording.id)
         
         logger.info(f'Recording stopped for recording ID: {recording.id}')
     
-    def _check_live_status(self, douyin_id):
+    def _check_live_status(self, anchor):
         """检查直播状态"""
         if self.use_real_api:
-            return self._real_check_live_status(douyin_id)
+            return self._real_check_live_status(anchor)
         else:
-            return self._mock_check_live_status(douyin_id)
+            return self._mock_check_live_status(anchor.douyin_id)
     
-    def _real_check_live_status(self, douyin_id):
-        """使用真实API检查直播状态"""
-        # 这里需要实现真实的抖音API调用
-        # 由于抖音API的限制，这里提供一个框架
-        for retry in range(self.api_retries):
-            try:
-                logger.info(f'Checking live status via API for ID: {douyin_id}, retry: {retry+1}')
-                # 构建API请求
-                # 注意：实际项目中需要使用正确的API端点和参数
-                # 这里只是一个示例框架
-                api_url = f'https://api.example.com/douyin/live/status'
-                params = {'douyin_id': douyin_id}
-                
-                response = requests.get(
-                    api_url,
-                    params=params,
-                    headers=self.headers,
-                    timeout=self.api_timeout
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    is_live = data.get('is_live', False)
-                    live_info = data.get('live_info', {})
-                    return is_live, live_info
-                else:
-                    logger.warning(f'API returned non-200 status: {response.status_code}')
-            except Exception as e:
-                logger.warning(f'API request failed: {e}')
-            
-            if retry < self.api_retries - 1:
-                logger.info(f'Retrying in 2 seconds...')
-                time.sleep(2)
-        
-        # 如果所有重试都失败，返回模拟结果
-        logger.warning('All API retries failed, using mock result')
-        return self._mock_check_live_status(douyin_id)
+    def _real_check_live_status(self, anchor):
+        """通过固定主播配置自动发现当前直播与流地址"""
+        discovery = live_discovery_service.discover_for_anchor(anchor)
+        resolved = discovery.get('resolved') or {}
+        is_live = resolved.get('status') == 'live'
+        stream_url = resolved.get('flv_url') or resolved.get('hls_url')
+
+        live_info = {
+            'room_id': (resolved.get('room') or {}).get('roomId') or anchor.room_id,
+            'stream_url': stream_url,
+            'title': resolved.get('title') or anchor.name,
+            'anchor_id': (resolved.get('anchor') or {}).get('id_str'),
+            'flv_url': resolved.get('flv_url'),
+            'hls_url': resolved.get('hls_url'),
+            'lls_url': resolved.get('lls_url'),
+        }
+        return is_live, live_info
     
     def _mock_check_live_status(self, douyin_id):
         """模拟检查直播状态"""

@@ -286,8 +286,6 @@ class ContentAnalyzer:
         if recording.video_path and os.path.exists(recording.video_path):
             try:
                 os.remove(recording.video_path)
-                recording.video_path = None
-                db.session.commit()
             except OSError as exc:
                 logger.warning('Failed to remove video file %s: %s', recording.video_path, exc)
 
