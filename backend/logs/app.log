@@ -382,3 +382,199 @@ Error opening input files: Server returned 403 Forbidden (access denied)
 2026-03-16 11:28:12,454 - werkzeug - INFO - 89976 - 6108753920 - 127.0.0.1 - - [16/Mar/2026 11:28:12] "POST /api/recordings/9/stop HTTP/1.1" 200 -
 2026-03-16 11:28:31,447 - werkzeug - INFO - 89976 - 6108753920 - 127.0.0.1 - - [16/Mar/2026 11:28:31] "GET /api/recordings?status=recording HTTP/1.1" 200 -
 2026-03-16 11:28:39,274 - werkzeug - INFO - 89976 - 6108753920 - 127.0.0.1 - - [16/Mar/2026 11:28:39] "GET /api/summaries/2 HTTP/1.1" 200 -
+2026-03-16 19:33:31,238 - app.services.anchor_sync_service - INFO - 49644 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:33:31,238 - app.services.anchor_sync_service - INFO - 49644 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:33:48,739 - app.services.anchor_sync_service - INFO - 49875 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:33:48,739 - app.services.anchor_sync_service - INFO - 49875 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:34:16,062 - app.services.anchor_sync_service - INFO - 50238 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:34:16,062 - app.services.anchor_sync_service - INFO - 50238 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:34:17,585 - app.services.live_monitor - INFO - 50238 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 19:34:17,585 - app.services.live_monitor - INFO - 50238 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 19:34:17,590 - app.services.video_recorder - INFO - 50238 - 8450470144 - Starting video recording for recording ID: 10
+2026-03-16 19:34:17,590 - app.services.video_recorder - INFO - 50238 - 8450470144 - Starting video recording for recording ID: 10
+2026-03-16 19:34:19,601 - app.services.video_recorder - INFO - 50238 - 8450470144 - Video recording started for recording ID: 10, output: ./data/temp_videos/4/4_20260316_193417.mp4
+2026-03-16 19:34:19,601 - app.services.video_recorder - INFO - 50238 - 8450470144 - Video recording started for recording ID: 10, output: ./data/temp_videos/4/4_20260316_193417.mp4
+2026-03-16 19:34:19,602 - app.services.live_monitor - INFO - 50238 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 10
+2026-03-16 19:34:19,602 - app.services.live_monitor - INFO - 50238 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 10
+2026-03-16 19:34:34,602 - app.services.live_monitor - INFO - 50238 - 8450470144 - Stopping recording for recording ID: 10
+2026-03-16 19:34:34,602 - app.services.live_monitor - INFO - 50238 - 8450470144 - Stopping recording for recording ID: 10
+2026-03-16 19:34:34,604 - app.services.video_recorder - INFO - 50238 - 8450470144 - Stopping video recording for recording ID: 10
+2026-03-16 19:34:34,604 - app.services.video_recorder - INFO - 50238 - 8450470144 - Stopping video recording for recording ID: 10
+2026-03-16 19:34:34,640 - app.services.video_recorder - INFO - 50238 - 8450470144 - Video recording stopped for recording ID: 10
+2026-03-16 19:34:34,640 - app.services.video_recorder - INFO - 50238 - 8450470144 - Video recording stopped for recording ID: 10
+2026-03-16 19:34:34,640 - app.services.video_recorder - INFO - 50238 - 8450470144 - Processing recording: 10
+2026-03-16 19:34:34,640 - app.services.video_recorder - INFO - 50238 - 8450470144 - Processing recording: 10
+2026-03-16 19:34:34,715 - app.services.video_recorder - INFO - 50238 - 8450470144 - Updated video duration for recording 10: 16 seconds
+2026-03-16 19:34:34,715 - app.services.video_recorder - INFO - 50238 - 8450470144 - Updated video duration for recording 10: 16 seconds
+2026-03-16 19:34:34,718 - app.services.video_recorder - INFO - 50238 - 8450470144 - Recording 10 processed successfully
+2026-03-16 19:34:34,718 - app.services.video_recorder - INFO - 50238 - 8450470144 - Recording 10 processed successfully
+2026-03-16 19:34:34,719 - app.services.live_monitor - INFO - 50238 - 8450470144 - Recording stopped for recording ID: 10
+2026-03-16 19:34:34,719 - app.services.live_monitor - INFO - 50238 - 8450470144 - Recording stopped for recording ID: 10
+2026-03-16 19:34:34,719 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Generating transcript for recording 10
+2026-03-16 19:34:34,719 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Generating transcript for recording 10
+2026-03-16 19:34:34,728 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_193417.mp4
+2026-03-16 19:34:34,728 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_193417.mp4
+2026-03-16 19:34:34,799 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Transcribing audio with provider=mock for recording 10
+2026-03-16 19:34:34,799 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Transcribing audio with provider=mock for recording 10
+2026-03-16 19:34:34,803 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Transcript generated successfully for recording 10
+2026-03-16 19:34:34,803 - app.services.content_analyzer - INFO - 50238 - 8450470144 - Transcript generated successfully for recording 10
+2026-03-16 19:34:46,526 - app.services.anchor_sync_service - INFO - 50583 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 19:34:46,526 - app.services.anchor_sync_service - INFO - 50583 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:45:26,988 - app.services.anchor_sync_service - INFO - 96343 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:45:26,988 - app.services.anchor_sync_service - INFO - 96343 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:52:31,100 - app.services.anchor_sync_service - INFO - 2188 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:52:31,100 - app.services.anchor_sync_service - INFO - 2188 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:52:33,676 - app.services.live_monitor - INFO - 2188 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 20:52:33,676 - app.services.live_monitor - INFO - 2188 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 20:52:33,681 - app.services.video_recorder - INFO - 2188 - 8450470144 - Starting video recording for recording ID: 11
+2026-03-16 20:52:33,681 - app.services.video_recorder - INFO - 2188 - 8450470144 - Starting video recording for recording ID: 11
+2026-03-16 20:52:35,712 - app.services.video_recorder - INFO - 2188 - 8450470144 - Video recording started for recording ID: 11, output: ./data/temp_videos/4/4_20260316_205233.mp4
+2026-03-16 20:52:35,712 - app.services.video_recorder - INFO - 2188 - 8450470144 - Video recording started for recording ID: 11, output: ./data/temp_videos/4/4_20260316_205233.mp4
+2026-03-16 20:52:35,713 - app.services.live_monitor - INFO - 2188 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 11
+2026-03-16 20:52:35,713 - app.services.live_monitor - INFO - 2188 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 11
+2026-03-16 20:52:47,718 - app.services.live_monitor - INFO - 2188 - 8450470144 - Stopping recording for recording ID: 11
+2026-03-16 20:52:47,718 - app.services.live_monitor - INFO - 2188 - 8450470144 - Stopping recording for recording ID: 11
+2026-03-16 20:52:47,719 - app.services.video_recorder - INFO - 2188 - 8450470144 - Stopping video recording for recording ID: 11
+2026-03-16 20:52:47,719 - app.services.video_recorder - INFO - 2188 - 8450470144 - Stopping video recording for recording ID: 11
+2026-03-16 20:52:47,854 - app.services.video_recorder - INFO - 2188 - 8450470144 - Video recording stopped for recording ID: 11
+2026-03-16 20:52:47,854 - app.services.video_recorder - INFO - 2188 - 8450470144 - Video recording stopped for recording ID: 11
+2026-03-16 20:52:47,854 - app.services.video_recorder - INFO - 2188 - 8450470144 - Processing recording: 11
+2026-03-16 20:52:47,854 - app.services.video_recorder - INFO - 2188 - 8450470144 - Processing recording: 11
+2026-03-16 20:52:47,917 - app.services.video_recorder - INFO - 2188 - 8450470144 - Updated video duration for recording 11: 15 seconds
+2026-03-16 20:52:47,917 - app.services.video_recorder - INFO - 2188 - 8450470144 - Updated video duration for recording 11: 15 seconds
+2026-03-16 20:52:47,920 - app.services.video_recorder - INFO - 2188 - 8450470144 - Recording 11 processed successfully
+2026-03-16 20:52:47,920 - app.services.video_recorder - INFO - 2188 - 8450470144 - Recording 11 processed successfully
+2026-03-16 20:52:47,921 - app.services.live_monitor - INFO - 2188 - 8450470144 - Recording stopped for recording ID: 11
+2026-03-16 20:52:47,921 - app.services.live_monitor - INFO - 2188 - 8450470144 - Recording stopped for recording ID: 11
+2026-03-16 20:52:47,921 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Generating transcript for recording 11
+2026-03-16 20:52:47,921 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Generating transcript for recording 11
+2026-03-16 20:52:47,928 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_205233.mp4
+2026-03-16 20:52:47,928 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_205233.mp4
+2026-03-16 20:52:48,002 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Transcribing audio with provider=local for recording 11
+2026-03-16 20:52:48,002 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Transcribing audio with provider=local for recording 11
+2026-03-16 20:52:48,003 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=tiny
+2026-03-16 20:52:48,003 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=tiny
+2026-03-16 20:53:11,772 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Transcript notification delivered for summary 4
+2026-03-16 20:53:11,772 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Transcript notification delivered for summary 4
+2026-03-16 20:53:11,773 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Transcript generated successfully for recording 11
+2026-03-16 20:53:11,773 - app.services.content_analyzer - INFO - 2188 - 8450470144 - Transcript generated successfully for recording 11
+2026-03-16 20:59:56,338 - app.services.anchor_sync_service - INFO - 7503 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:59:56,338 - app.services.anchor_sync_service - INFO - 7503 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 20:59:59,290 - app.services.live_monitor - INFO - 7503 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 20:59:59,290 - app.services.live_monitor - INFO - 7503 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 20:59:59,296 - app.services.video_recorder - INFO - 7503 - 8450470144 - Starting video recording for recording ID: 12
+2026-03-16 20:59:59,296 - app.services.video_recorder - INFO - 7503 - 8450470144 - Starting video recording for recording ID: 12
+2026-03-16 21:00:01,304 - app.services.video_recorder - INFO - 7503 - 8450470144 - Video recording started for recording ID: 12, output: ./data/temp_videos/4/4_20260316_205959.mp4
+2026-03-16 21:00:01,304 - app.services.video_recorder - INFO - 7503 - 8450470144 - Video recording started for recording ID: 12, output: ./data/temp_videos/4/4_20260316_205959.mp4
+2026-03-16 21:00:01,305 - app.services.live_monitor - INFO - 7503 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 12
+2026-03-16 21:00:01,305 - app.services.live_monitor - INFO - 7503 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 12
+2026-03-16 21:00:13,307 - app.services.live_monitor - INFO - 7503 - 8450470144 - Stopping recording for recording ID: 12
+2026-03-16 21:00:13,307 - app.services.live_monitor - INFO - 7503 - 8450470144 - Stopping recording for recording ID: 12
+2026-03-16 21:00:13,307 - app.services.video_recorder - INFO - 7503 - 8450470144 - Stopping video recording for recording ID: 12
+2026-03-16 21:00:13,307 - app.services.video_recorder - INFO - 7503 - 8450470144 - Stopping video recording for recording ID: 12
+2026-03-16 21:00:13,316 - app.services.video_recorder - INFO - 7503 - 8450470144 - Video recording stopped for recording ID: 12
+2026-03-16 21:00:13,316 - app.services.video_recorder - INFO - 7503 - 8450470144 - Video recording stopped for recording ID: 12
+2026-03-16 21:00:13,316 - app.services.video_recorder - INFO - 7503 - 8450470144 - Processing recording: 12
+2026-03-16 21:00:13,316 - app.services.video_recorder - INFO - 7503 - 8450470144 - Processing recording: 12
+2026-03-16 21:00:13,387 - app.services.video_recorder - INFO - 7503 - 8450470144 - Updated video duration for recording 12: 13 seconds
+2026-03-16 21:00:13,387 - app.services.video_recorder - INFO - 7503 - 8450470144 - Updated video duration for recording 12: 13 seconds
+2026-03-16 21:00:13,390 - app.services.video_recorder - INFO - 7503 - 8450470144 - Recording 12 processed successfully
+2026-03-16 21:00:13,390 - app.services.video_recorder - INFO - 7503 - 8450470144 - Recording 12 processed successfully
+2026-03-16 21:00:13,391 - app.services.live_monitor - INFO - 7503 - 8450470144 - Recording stopped for recording ID: 12
+2026-03-16 21:00:13,391 - app.services.live_monitor - INFO - 7503 - 8450470144 - Recording stopped for recording ID: 12
+2026-03-16 21:00:13,391 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Generating transcript for recording 12
+2026-03-16 21:00:13,391 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Generating transcript for recording 12
+2026-03-16 21:00:13,398 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_205959.mp4
+2026-03-16 21:00:13,398 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_205959.mp4
+2026-03-16 21:00:13,465 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Transcribing audio with provider=local for recording 12
+2026-03-16 21:00:13,465 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Transcribing audio with provider=local for recording 12
+2026-03-16 21:00:13,465 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=base
+2026-03-16 21:00:13,465 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=base
+2026-03-16 21:00:39,775 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Transcript notification delivered for summary 5
+2026-03-16 21:00:39,775 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Transcript notification delivered for summary 5
+2026-03-16 21:00:39,776 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Transcript generated successfully for recording 12
+2026-03-16 21:00:39,776 - app.services.content_analyzer - INFO - 7503 - 8450470144 - Transcript generated successfully for recording 12
+2026-03-16 21:00:56,745 - app.services.anchor_sync_service - INFO - 8376 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:00:56,745 - app.services.anchor_sync_service - INFO - 8376 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:05:46,056 - app.services.anchor_sync_service - INFO - 11537 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:05:46,056 - app.services.anchor_sync_service - INFO - 11537 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:05:48,373 - app.services.live_monitor - INFO - 11537 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 21:05:48,373 - app.services.live_monitor - INFO - 11537 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 21:05:48,378 - app.services.video_recorder - INFO - 11537 - 8450470144 - Starting video recording for recording ID: 13
+2026-03-16 21:05:48,378 - app.services.video_recorder - INFO - 11537 - 8450470144 - Starting video recording for recording ID: 13
+2026-03-16 21:05:50,386 - app.services.video_recorder - INFO - 11537 - 8450470144 - Video recording started for recording ID: 13, output: ./data/temp_videos/4/4_20260316_210548.mp4
+2026-03-16 21:05:50,386 - app.services.video_recorder - INFO - 11537 - 8450470144 - Video recording started for recording ID: 13, output: ./data/temp_videos/4/4_20260316_210548.mp4
+2026-03-16 21:05:50,387 - app.services.live_monitor - INFO - 11537 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 13
+2026-03-16 21:05:50,387 - app.services.live_monitor - INFO - 11537 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 13
+2026-03-16 21:06:02,392 - app.services.live_monitor - INFO - 11537 - 8450470144 - Stopping recording for recording ID: 13
+2026-03-16 21:06:02,392 - app.services.live_monitor - INFO - 11537 - 8450470144 - Stopping recording for recording ID: 13
+2026-03-16 21:06:02,392 - app.services.video_recorder - INFO - 11537 - 8450470144 - Stopping video recording for recording ID: 13
+2026-03-16 21:06:02,392 - app.services.video_recorder - INFO - 11537 - 8450470144 - Stopping video recording for recording ID: 13
+2026-03-16 21:06:02,412 - app.services.video_recorder - INFO - 11537 - 8450470144 - Video recording stopped for recording ID: 13
+2026-03-16 21:06:02,412 - app.services.video_recorder - INFO - 11537 - 8450470144 - Video recording stopped for recording ID: 13
+2026-03-16 21:06:02,412 - app.services.video_recorder - INFO - 11537 - 8450470144 - Processing recording: 13
+2026-03-16 21:06:02,412 - app.services.video_recorder - INFO - 11537 - 8450470144 - Processing recording: 13
+2026-03-16 21:06:02,479 - app.services.video_recorder - INFO - 11537 - 8450470144 - Updated video duration for recording 13: 14 seconds
+2026-03-16 21:06:02,479 - app.services.video_recorder - INFO - 11537 - 8450470144 - Updated video duration for recording 13: 14 seconds
+2026-03-16 21:06:02,482 - app.services.video_recorder - INFO - 11537 - 8450470144 - Recording 13 processed successfully
+2026-03-16 21:06:02,482 - app.services.video_recorder - INFO - 11537 - 8450470144 - Recording 13 processed successfully
+2026-03-16 21:06:02,483 - app.services.live_monitor - INFO - 11537 - 8450470144 - Recording stopped for recording ID: 13
+2026-03-16 21:06:02,483 - app.services.live_monitor - INFO - 11537 - 8450470144 - Recording stopped for recording ID: 13
+2026-03-16 21:06:02,483 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Generating transcript for recording 13
+2026-03-16 21:06:02,483 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Generating transcript for recording 13
+2026-03-16 21:06:02,490 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_210548.mp4
+2026-03-16 21:06:02,490 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_210548.mp4
+2026-03-16 21:06:02,558 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Transcribing audio with provider=local for recording 13
+2026-03-16 21:06:02,558 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Transcribing audio with provider=local for recording 13
+2026-03-16 21:06:02,558 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=small
+2026-03-16 21:06:02,558 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=small
+2026-03-16 21:06:50,468 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Transcript notification delivered for summary 6
+2026-03-16 21:06:50,468 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Transcript notification delivered for summary 6
+2026-03-16 21:06:50,470 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Transcript generated successfully for recording 13
+2026-03-16 21:06:50,470 - app.services.content_analyzer - INFO - 11537 - 8450470144 - Transcript generated successfully for recording 13
+2026-03-16 21:46:09,966 - app.services.anchor_sync_service - INFO - 38309 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:46:09,966 - app.services.anchor_sync_service - INFO - 38309 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:46:28,577 - app.services.anchor_sync_service - INFO - 38561 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:46:28,577 - app.services.anchor_sync_service - INFO - 38561 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:55:21,318 - app.services.anchor_sync_service - INFO - 44538 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:55:21,318 - app.services.anchor_sync_service - INFO - 44538 - 8450470144 - Anchor config sync complete: total=1 created=0 updated=0 disabled=0
+2026-03-16 21:55:24,001 - app.services.live_monitor - INFO - 44538 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 21:55:24,001 - app.services.live_monitor - INFO - 44538 - 8450470144 - Starting recording for anchor 沐浴鹿（炉石传说）
+2026-03-16 21:55:24,006 - app.services.video_recorder - INFO - 44538 - 8450470144 - Starting video recording for recording ID: 14
+2026-03-16 21:55:24,006 - app.services.video_recorder - INFO - 44538 - 8450470144 - Starting video recording for recording ID: 14
+2026-03-16 21:55:26,014 - app.services.video_recorder - INFO - 44538 - 8450470144 - Video recording started for recording ID: 14, output: ./data/temp_videos/4/4_20260316_215524.mp4
+2026-03-16 21:55:26,014 - app.services.video_recorder - INFO - 44538 - 8450470144 - Video recording started for recording ID: 14, output: ./data/temp_videos/4/4_20260316_215524.mp4
+2026-03-16 21:55:26,015 - app.services.live_monitor - INFO - 44538 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 14
+2026-03-16 21:55:26,015 - app.services.live_monitor - INFO - 44538 - 8450470144 - Recording started for anchor 沐浴鹿（炉石传说）, recording ID: 14
+2026-03-16 21:55:34,019 - app.services.live_monitor - INFO - 44538 - 8450470144 - Stopping recording for recording ID: 14
+2026-03-16 21:55:34,019 - app.services.live_monitor - INFO - 44538 - 8450470144 - Stopping recording for recording ID: 14
+2026-03-16 21:55:34,020 - app.services.video_recorder - INFO - 44538 - 8450470144 - Stopping video recording for recording ID: 14
+2026-03-16 21:55:34,020 - app.services.video_recorder - INFO - 44538 - 8450470144 - Stopping video recording for recording ID: 14
+2026-03-16 21:55:34,030 - app.services.video_recorder - INFO - 44538 - 8450470144 - Video recording stopped for recording ID: 14
+2026-03-16 21:55:34,030 - app.services.video_recorder - INFO - 44538 - 8450470144 - Video recording stopped for recording ID: 14
+2026-03-16 21:55:34,030 - app.services.video_recorder - INFO - 44538 - 8450470144 - Processing recording: 14
+2026-03-16 21:55:34,030 - app.services.video_recorder - INFO - 44538 - 8450470144 - Processing recording: 14
+2026-03-16 21:55:34,102 - app.services.video_recorder - INFO - 44538 - 8450470144 - Updated video duration for recording 14: 9 seconds
+2026-03-16 21:55:34,102 - app.services.video_recorder - INFO - 44538 - 8450470144 - Updated video duration for recording 14: 9 seconds
+2026-03-16 21:55:34,105 - app.services.video_recorder - INFO - 44538 - 8450470144 - Recording 14 processed successfully
+2026-03-16 21:55:34,105 - app.services.video_recorder - INFO - 44538 - 8450470144 - Recording 14 processed successfully
+2026-03-16 21:55:34,106 - app.services.live_monitor - INFO - 44538 - 8450470144 - Recording stopped for recording ID: 14
+2026-03-16 21:55:34,106 - app.services.live_monitor - INFO - 44538 - 8450470144 - Recording stopped for recording ID: 14
+2026-03-16 21:55:34,106 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Generating transcript for recording 14
+2026-03-16 21:55:34,106 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Generating transcript for recording 14
+2026-03-16 21:55:34,113 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_215524.mp4
+2026-03-16 21:55:34,113 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Extracting audio from ./data/temp_videos/4/4_20260316_215524.mp4
+2026-03-16 21:55:34,177 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Transcribing audio with provider=aliyun for recording 14
+2026-03-16 21:55:34,177 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Transcribing audio with provider=aliyun for recording 14
+2026-03-16 21:55:39,542 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Submitting aliyun paraformer transcription job for http://8.129.234.196/api/transcription-files/eyJwYXRoIjoiL1VzZXJzL2t1YW4vY29kZS9saXZlLXJlY29yZC9iYWNrZW5kL2RhdGEvc3VtbWFyaWVzLzRfMjAyNjAzMTZfMjE1NTI0Lm1wMyJ9.abgL2w.PzFbigiSOoit8MKrUkoiv1kl4AE
+2026-03-16 21:55:39,542 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Submitting aliyun paraformer transcription job for http://8.129.234.196/api/transcription-files/eyJwYXRoIjoiL1VzZXJzL2t1YW4vY29kZS9saXZlLXJlY29yZC9iYWNrZW5kL2RhdGEvc3VtbWFyaWVzLzRfMjAyNjAzMTZfMjE1NTI0Lm1wMyJ9.abgL2w.PzFbigiSOoit8MKrUkoiv1kl4AE
+2026-03-16 21:55:44,296 - app.services.content_analyzer - ERROR - 44538 - 8450470144 - Aliyun transcription finished without transcription_url: {"status_code": 200, "request_id": "1dd5eb56-9fe3-44d6-9c1a-5750ae7a6751", "code": null, "message": "", "output": {"task_id": "f78b3df5-13cf-4978-8458-d580748c5997", "task_status": "FAILED", "submit_time": "2026-03-16 21:55:41.360", "scheduled_time": "2026-03-16 21:55:41.392", "end_time": "2026-03-16 21:55:41.717", "code": "FILE_DOWNLOAD_FAILED", "message": "FILE_DOWNLOAD_FAILED", "results": [{"file_url": "http://8.129.234.196/api/transcription-files/eyJwYXRoIjoiL1VzZXJzL2t1YW4vY29kZS9saXZlLXJlY29yZC9iYWNrZW5kL2RhdGEvc3VtbWFyaWVzLzRfMjAyNjAzMTZfMjE1NTI0Lm1wMyJ9.abgL2w.PzFbigiSOoit8MKrUkoiv1kl4AE", "code": "FILE_DOWNLOAD_FAILED", "message": "FILE_DOWNLOAD_FAILED", "subtask_status": "FAILED"}], "task_metrics": {"TOTAL": 1, "SUCCEEDED": 0, "FAILED": 1}}, "usage": null}
+2026-03-16 21:55:44,296 - app.services.content_analyzer - ERROR - 44538 - 8450470144 - Aliyun transcription finished without transcription_url: {"status_code": 200, "request_id": "1dd5eb56-9fe3-44d6-9c1a-5750ae7a6751", "code": null, "message": "", "output": {"task_id": "f78b3df5-13cf-4978-8458-d580748c5997", "task_status": "FAILED", "submit_time": "2026-03-16 21:55:41.360", "scheduled_time": "2026-03-16 21:55:41.392", "end_time": "2026-03-16 21:55:41.717", "code": "FILE_DOWNLOAD_FAILED", "message": "FILE_DOWNLOAD_FAILED", "results": [{"file_url": "http://8.129.234.196/api/transcription-files/eyJwYXRoIjoiL1VzZXJzL2t1YW4vY29kZS9saXZlLXJlY29yZC9iYWNrZW5kL2RhdGEvc3VtbWFyaWVzLzRfMjAyNjAzMTZfMjE1NTI0Lm1wMyJ9.abgL2w.PzFbigiSOoit8MKrUkoiv1kl4AE", "code": "FILE_DOWNLOAD_FAILED", "message": "FILE_DOWNLOAD_FAILED", "subtask_status": "FAILED"}], "task_metrics": {"TOTAL": 1, "SUCCEEDED": 0, "FAILED": 1}}, "usage": null}
+2026-03-16 21:55:44,297 - app.services.content_analyzer - WARNING - 44538 - 8450470144 - Falling back from provider=aliyun to provider=local for recording 14
+2026-03-16 21:55:44,297 - app.services.content_analyzer - WARNING - 44538 - 8450470144 - Falling back from provider=aliyun to provider=local for recording 14
+2026-03-16 21:55:44,298 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=base
+2026-03-16 21:55:44,298 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Running local transcription via ./whisper-venv/bin/python with model=base
+2026-03-16 21:55:48,438 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Transcript notification delivered for summary 7
+2026-03-16 21:55:48,438 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Transcript notification delivered for summary 7
+2026-03-16 21:55:48,439 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Transcript generated successfully for recording 14
+2026-03-16 21:55:48,439 - app.services.content_analyzer - INFO - 44538 - 8450470144 - Transcript generated successfully for recording 14
