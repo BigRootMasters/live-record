@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Button, Descriptions, Input, message, Modal, Space, Spin, Table, Tag } from 'antd'
 import { CopyOutlined, MessageOutlined } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 import { summaryAPI } from '../api'
 
 const { Search } = Input
@@ -115,6 +116,9 @@ const SummaryList = () => {
       render: (_, record) => (
         <Space size="middle">
           <Button onClick={() => showSummaryDetail(record)}>查看全文</Button>
+          <Button type="link">
+            <Link to={`/summaries/${record.id}`}>打开详情页</Link>
+          </Button>
         </Space>
       )
     }

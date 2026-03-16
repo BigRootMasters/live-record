@@ -17,7 +17,7 @@ class LiveMonitor:
     """直播监测服务"""
     
     def __init__(self):
-        self.check_interval = int(os.getenv('CHECK_INTERVAL', 300))  # 默认5分钟检查一次
+        self.check_interval = int(os.getenv('CHECK_INTERVAL', 120))  # 默认2分钟检查一次
         self.user_agent = os.getenv('DOUYIN_USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36')
         self.use_real_api = os.getenv('USE_REAL_API', 'False').lower() == 'true'
         self.api_timeout = int(os.getenv('API_TIMEOUT', 10))

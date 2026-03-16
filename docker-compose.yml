@@ -1,5 +1,31 @@
 version: '3.8'
 
+x-backend-env: &backend-env
+  FLASK_ENV: production
+  VIDEO_STORAGE_PATH: /app/data/videos
+  SUMMARY_STORAGE_PATH: /app/data/summaries
+  DATABASE_URL: sqlite:////app/data/app.db
+  ANCHOR_CONFIG_PATH: /app/config/anchors.json
+  USE_REAL_API: ${USE_REAL_API:-True}
+  CHECK_INTERVAL: ${CHECK_INTERVAL:-120}
+  MAX_RECORDING_DURATION: ${MAX_RECORDING_DURATION:-9000}
+  CLEANUP_VIDEO: ${CLEANUP_VIDEO:-True}
+  TRANSCRIPTION_PROVIDER: ${TRANSCRIPTION_PROVIDER:-local}
+  TRANSCRIPTION_FALLBACK_PROVIDER: ${TRANSCRIPTION_FALLBACK_PROVIDER:-local}
+  AUTO_NOTIFY_ON_TRANSCRIBE: ${AUTO_NOTIFY_ON_TRANSCRIBE:-True}
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  OPENAI_TRANSCRIPTION_MODEL: ${OPENAI_TRANSCRIPTION_MODEL:-gpt-4o-mini-transcribe}
+  ALIYUN_DASHSCOPE_API_KEY: ${ALIYUN_DASHSCOPE_API_KEY}
+  ALIYUN_PARAFORMER_MODEL: ${ALIYUN_PARAFORMER_MODEL:-paraformer-v2}
+  ALIYUN_PARAFORMER_LANGUAGE_HINTS: ${ALIYUN_PARAFORMER_LANGUAGE_HINTS:-zh}
+  PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+  WECHAT_WEBHOOK_URL: ${WECHAT_WEBHOOK_URL}
+  WECHAT_TIMEOUT: ${WECHAT_TIMEOUT:-10}
+  WECHAT_RETRIES: ${WECHAT_RETRIES:-3}
+  TRANSCRIPT_BASE_URL: ${TRANSCRIPT_BASE_URL}
+  SUMMARY_SEND_TIME: ${SUMMARY_SEND_TIME:-08:00}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
 services:
   backend:
     build:
@@ -7,19 +33,25 @@ services:
     container_name: live-record-backend
     ports:
       - "5000:5000"
-    environment:
-      - FLASK_ENV=production
-      - VIDEO_STORAGE_PATH=/app/data/videos
-      - SUMMARY_STORAGE_PATH=/app/data/summaries
-      - DATABASE_URL=sqlite:////app/data/app.db
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - EMAIL_SENDER=${EMAIL_SENDER}
-      - EMAIL_RECEIVER=${EMAIL_RECEIVER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - SMTP_SERVER=${SMTP_SERVER}
-      - SMTP_PORT=${SMTP_PORT}
+    environment: *backend-env
     volumes:
       - ./backend/data:/app/data
+      - ./backend/config:/app/config:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ./backend
+    container_name: live-record-scheduler
+    command: ["python", "run_scheduler.py"]
+    environment: *backend-env
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/config:/app/config:ro
+    depends_on:
+      - backend
     networks:
       - app-network
     restart: unless-stopped

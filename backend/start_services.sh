@@ -25,7 +25,7 @@ fi
 
 # 启动定时任务服务
 echo "Starting task scheduler..."
-python -c "from app.services.task_scheduler import task_scheduler; task_scheduler.start()"
+python run_scheduler.py
 
 echo "All services started successfully!"
 echo "System is now monitoring for live streams..."

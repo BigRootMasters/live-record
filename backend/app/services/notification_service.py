@@ -22,6 +22,15 @@ class NotificationService:
         self.summary_send_time = os.getenv('SUMMARY_SEND_TIME', '08:00')
         self.transcript_base_url = os.getenv('TRANSCRIPT_BASE_URL', 'http://localhost:5173/summaries')
 
+    def _get_transcript_link(self, summary_id):
+        if not self.transcript_base_url:
+            return None
+
+        if 'your-server-ip-or-domain' in self.transcript_base_url:
+            return None
+
+        return f'{self.transcript_base_url.rstrip("/")}/{summary_id}'
+
     def send_summary(self, summary_id):
         summary = Summary.query.filter_by(id=summary_id).first()
         if not summary or summary.status != 'completed':
@@ -58,7 +67,7 @@ class NotificationService:
 
         transcript_length = len(summary.content or '')
         preview = self._build_preview(summary.content or '')
-        transcript_link = f'{self.transcript_base_url}/{summary.id}'
+        transcript_link = self._get_transcript_link(summary.id)
 
         notification_data = {
             'anchor_name': anchor.name,
@@ -82,6 +91,12 @@ class NotificationService:
         return True
 
     def _send_wechat(self, notification_data):
+        link_block = (
+            f"[查看完整文字稿]({notification_data['transcript_link']})\n\n"
+            if notification_data.get('transcript_link')
+            else "未配置可访问的全文链接，如需打开全文，请先设置 TRANSCRIPT_BASE_URL。\n\n"
+        )
+
         markdown_content = (
             f"## {notification_data['anchor_name']} 直播文字稿已生成\n\n"
             f"- 直播日期：{notification_data['date']}\n"
@@ -89,7 +104,7 @@ class NotificationService:
             f"- 文字长度：约 {notification_data['transcript_length']} 字\n\n"
             f"### 内容预览\n"
             f"{notification_data['preview']}\n\n"
-            f"[查看完整文字稿]({notification_data['transcript_link']})\n\n"
+            f"{link_block}"
             '此消息由直播转写系统自动发送'
         )
 

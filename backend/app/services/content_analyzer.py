@@ -1,5 +1,6 @@
 import logging
 import os
+import json
 import subprocess
 import tempfile
 from datetime import datetime
@@ -8,6 +9,8 @@ import requests
 from dotenv import load_dotenv
 
 from app.models import Recording, Summary, db
+from app.services.notification_service import notification_service
+from app.utils.signed_media import generate_media_token
 
 load_dotenv()
 
@@ -26,7 +29,15 @@ class ContentAnalyzer:
         self.openai_transcription_url = os.getenv('OPENAI_TRANSCRIPTION_URL', 'https://api.openai.com/v1/audio/transcriptions')
         self.audio_chunk_minutes = int(os.getenv('AUDIO_CHUNK_MINUTES', '10'))
         self.transcription_language = os.getenv('TRANSCRIPTION_LANGUAGE', 'zh')
-        self.whisper_model = None
+        self.auto_notify_on_transcribe = os.getenv('AUTO_NOTIFY_ON_TRANSCRIBE', 'True').lower() == 'true'
+        self.transcription_fallback_provider = os.getenv('TRANSCRIPTION_FALLBACK_PROVIDER', 'local').lower()
+        self.local_whisper_python = os.getenv('WHISPER_PYTHON_BIN', './whisper-venv/bin/python')
+        self.local_whisper_script = os.getenv('WHISPER_SCRIPT_PATH', './scripts/local_transcribe.py')
+        self.local_whisper_model = os.getenv('WHISPER_MODEL_SIZE', 'tiny')
+        self.public_base_url = os.getenv('PUBLIC_BASE_URL', '').rstrip('/')
+        self.aliyun_dashscope_api_key = os.getenv('ALIYUN_DASHSCOPE_API_KEY')
+        self.aliyun_paraformer_model = os.getenv('ALIYUN_PARAFORMER_MODEL', 'paraformer-v2')
+        self.aliyun_task_language_hints = os.getenv('ALIYUN_PARAFORMER_LANGUAGE_HINTS', 'zh')
 
     def analyze_recording(self, recording_id):
         """Generate a transcript for a completed recording."""
@@ -63,6 +74,9 @@ class ContentAnalyzer:
 
             recording.status = 'transcribed'
             db.session.commit()
+
+            if self.auto_notify_on_transcribe:
+                self._notify_summary(summary.id)
 
             if self.cleanup_source_video:
                 self._cleanup_video(recording)
@@ -144,6 +158,12 @@ class ContentAnalyzer:
         if self.transcription_provider == 'openai':
             return self._transcribe_with_openai(audio_path)
 
+        if self.transcription_provider == 'aliyun':
+            transcript = self._transcribe_with_aliyun(audio_path)
+            if transcript:
+                return transcript
+            return self._transcribe_with_fallback(audio_path, recording)
+
         if self.transcription_provider == 'mock':
             return self._mock_transcribe(recording)
 
@@ -153,17 +173,60 @@ class ContentAnalyzer:
         )
         return self._mock_transcribe(recording)
 
+    def _transcribe_with_fallback(self, audio_path, recording):
+        fallback = (self.transcription_fallback_provider or '').strip().lower()
+        if not fallback or fallback == self.transcription_provider:
+            return None
+
+        logger.warning(
+            'Falling back from provider=%s to provider=%s for recording %s',
+            self.transcription_provider,
+            fallback,
+            recording.id,
+        )
+
+        if fallback == 'local':
+            return self._transcribe_with_local_whisper(audio_path)
+        if fallback == 'mock':
+            return self._mock_transcribe(recording)
+        if fallback == 'openai':
+            return self._transcribe_with_openai(audio_path)
+        return None
+
     def _transcribe_with_local_whisper(self, audio_path):
         try:
-            if self.whisper_model is None:
-                import whisper
+            cmd = [
+                self.local_whisper_python,
+                self.local_whisper_script,
+                '--audio-path',
+                audio_path,
+                '--model-size',
+                self.local_whisper_model,
+                '--language',
+                self.transcription_language,
+            ]
+            logger.info(
+                'Running local transcription via %s with model=%s',
+                self.local_whisper_python,
+                self.local_whisper_model,
+            )
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                shell=False,
+            )
+            if result.returncode != 0:
+                logger.error('Local Whisper transcription failed: %s', result.stderr.strip())
+                return None
 
-                model_size = os.getenv('WHISPER_MODEL_SIZE', 'base')
-                logger.info('Loading Whisper model: %s', model_size)
-                self.whisper_model = whisper.load_model(model_size)
-
-            result = self.whisper_model.transcribe(audio_path, language='zh')
-            return result.get('text', '').strip()
+            payload = json.loads(result.stdout)
+            transcript = (payload.get('text') or '').strip()
+            if not transcript:
+                logger.error('Local Whisper returned empty transcript for %s', audio_path)
+                return None
+            return transcript
         except Exception as exc:
             logger.error('Local Whisper transcription failed: %s', exc)
             return None
@@ -257,6 +320,97 @@ class ContentAnalyzer:
 
         return response.text.strip()
 
+    def _transcribe_with_aliyun(self, audio_path):
+        if not self.aliyun_dashscope_api_key:
+            logger.error('ALIYUN_DASHSCOPE_API_KEY is missing, cannot use aliyun transcription provider')
+            return None
+
+        if not self.public_base_url:
+            logger.error('PUBLIC_BASE_URL is missing, cannot expose audio file to aliyun transcription service')
+            return None
+
+        try:
+            from dashscope.audio.asr import Transcription
+        except Exception as exc:
+            logger.error('dashscope sdk is not available: %s', exc)
+            return None
+
+        try:
+            token = generate_media_token(audio_path)
+            file_url = f'{self.public_base_url}/api/transcription-files/{token}'
+            logger.info('Submitting aliyun paraformer transcription job for %s', file_url)
+
+            task_response = Transcription.async_call(
+                model=self.aliyun_paraformer_model,
+                file_urls=[file_url],
+                language_hints=[self.aliyun_task_language_hints],
+                api_key=self.aliyun_dashscope_api_key,
+            )
+            task_id = self._extract_dashscope_value(task_response, ['output', 'task_id'])
+            if not task_id:
+                logger.error('Failed to create aliyun transcription task: %s', task_response)
+                return None
+
+            wait_response = Transcription.wait(
+                task=task_id,
+                api_key=self.aliyun_dashscope_api_key,
+            )
+            transcription_url = self._extract_dashscope_value(wait_response, ['output', 'results', 0, 'transcription_url'])
+            if not transcription_url:
+                logger.error('Aliyun transcription finished without transcription_url: %s', wait_response)
+                return None
+
+            response = requests.get(transcription_url, timeout=300)
+            response.raise_for_status()
+            payload = response.json()
+            transcript = self._parse_aliyun_transcript(payload)
+            if not transcript:
+                logger.error('Aliyun transcription result is empty: %s', payload)
+                return None
+            return transcript
+        except Exception as exc:
+            logger.error('Aliyun transcription failed: %s', exc)
+            return None
+
+    def _extract_dashscope_value(self, payload, path):
+        current = payload
+        for key in path:
+            if isinstance(key, int):
+                if not isinstance(current, list) or len(current) <= key:
+                    return None
+                current = current[key]
+                continue
+
+            if isinstance(current, dict):
+                current = current.get(key)
+            else:
+                current = getattr(current, key, None)
+
+            if current is None:
+                return None
+        return current
+
+    def _parse_aliyun_transcript(self, payload):
+        texts = []
+        for entry in payload.get('transcripts', []):
+            text = (entry.get('text') or '').strip()
+            if text:
+                texts.append(text)
+
+        if texts:
+            return '\n'.join(texts)
+
+        sentences = payload.get('sentences', [])
+        if sentences:
+            parts = []
+            for sentence in sentences:
+                text = (sentence.get('text') or '').strip()
+                if text:
+                    parts.append(text)
+            return '\n'.join(parts)
+
+        return None
+
     def _cleanup_chunk_files(self, chunk_paths):
         for chunk_path in chunk_paths:
             if os.path.exists(chunk_path):
@@ -288,6 +442,16 @@ class ContentAnalyzer:
                 os.remove(recording.video_path)
             except OSError as exc:
                 logger.warning('Failed to remove video file %s: %s', recording.video_path, exc)
+
+    def _notify_summary(self, summary_id):
+        try:
+            delivered = notification_service.send_summary(summary_id)
+            if delivered:
+                logger.info('Transcript notification delivered for summary %s', summary_id)
+            else:
+                logger.warning('Transcript notification was not delivered for summary %s', summary_id)
+        except Exception as exc:
+            logger.warning('Transcript notification failed for summary %s: %s', summary_id, exc)
 
     def _mock_transcribe(self, recording):
         anchor_name = recording.anchor.name if recording.anchor else '主播'

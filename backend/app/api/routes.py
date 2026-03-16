@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from app.models import db, Anchor, Recording, Summary
 from app.services.anchor_config_service import anchor_config_service
 from app.services.content_analyzer import content_analyzer
@@ -6,6 +6,7 @@ from app.services.douyin_live_resolver import douyin_live_resolver
 from app.services.live_monitor import live_monitor
 from app.services.live_discovery_service import live_discovery_service
 from app.services.notification_service import notification_service
+from app.utils.signed_media import resolve_media_token
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 from datetime import datetime, timedelta
@@ -35,6 +36,15 @@ def serialize_anchor(anchor):
             'notes': config.get('notes'),
         }
     }
+
+
+@bp.route('/transcription-files/<token>', methods=['GET'])
+def get_transcription_file(token):
+    """提供限时有效的音频文件下载地址，供转写服务回拉。"""
+    file_path = resolve_media_token(token, max_age=3600)
+    if not file_path:
+        return jsonify({'error': 'File not found or token expired'}), 404
+    return send_file(file_path, as_attachment=False, conditional=True)
 
 # 主播管理接口
 
