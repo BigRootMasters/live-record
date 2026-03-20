@@ -22,6 +22,18 @@ class DouyinLiveResolver:
             '(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
         )
         self.timeout = int(os.getenv('API_TIMEOUT', 10))
+        self.profile_headers = {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36',
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'Cookie': 's_v_web_id=verify_lk07kv74_QZYCUApD_xhiB_405x_Ax51_GYO9bUIyZQVf',
+        }
+        self.share_headers = {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 11; SAMSUNG SM-G973U) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) SamsungBrowser/14.2 Chrome/87.0.4280.141 Mobile Safari/537.36',
+            'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
+            'Cookie': 'ttwid=1%7C4ejCkU2bKY76IySQENJwvGhg1IQZrgGEupSyTKKfuyk%7C1740470403%7Cbc9ad2ee341f1a162f9e27f4641778030d1ae91e31f9df6553a8f2efa3bdb7b4; __ac_nonce=0683e59f3009cc48fbab0; __ac_signature=_02B4Z6wo00f01mG6waQAAIDB9JUCzFb6.TZhmsUAAPBf34; __ac_referer=__ac_blank',
+        }
 
     def resolve(self, live_url):
         page_html = self._fetch_page(live_url)
@@ -66,6 +78,56 @@ class DouyinLiveResolver:
         except Exception as exc:
             logger.error('Failed to fetch Douyin live page %s: %s', live_url, exc)
             return None
+
+    def get_unique_id_from_profile(self, douyin_id=None, profile_url=None):
+        """Best-effort extraction of a stable unique_id from profile information."""
+        profile_entry = profile_url or self._build_profile_url(douyin_id)
+        if not profile_entry:
+            return None
+
+        try:
+            session = requests.Session()
+            profile_response = session.get(
+                profile_entry,
+                headers=self.profile_headers,
+                timeout=self.timeout,
+                allow_redirects=True,
+            )
+            profile_response.raise_for_status()
+
+            sec_user_id = profile_response.url.split('?')[0].rsplit('/', maxsplit=1)[-1]
+            if not sec_user_id:
+                return None
+
+            share_response = session.get(
+                f'https://www.iesdouyin.com/share/user/{sec_user_id}',
+                headers=self.share_headers,
+                timeout=self.timeout,
+                allow_redirects=True,
+            )
+            share_response.raise_for_status()
+            return self._extract_unique_id(share_response.text)
+        except Exception as exc:
+            logger.warning('Failed to derive unique_id from profile %s: %s', profile_entry, exc)
+            return None
+
+    def _build_profile_url(self, douyin_id):
+        if not douyin_id:
+            return None
+        return f'https://www.douyin.com/user/{douyin_id}'
+
+    def _extract_unique_id(self, page_html):
+        patterns = [
+            r'unique_id":"(.*?)","verification_type',
+            r'"unique_id":"(.*?)"',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, page_html)
+            if match:
+                unique_id = (match.group(1) or '').strip()
+                if unique_id:
+                    return unique_id
+        return None
 
     def _extract_json_attr(self, page_html, attr_name):
         pattern = rf'{attr_name}="([^"]+)"'
