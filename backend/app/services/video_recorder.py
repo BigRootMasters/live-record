@@ -19,7 +19,7 @@ class VideoRecorder:
     def __init__(self):
         self.recording_quality = os.getenv('RECORDING_QUALITY', '720p')
         self.recording_processes = {}
-        self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 9000))  # 最大录制时长
+        self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 120))  # 最大录制时长
         self.cleanup_video = os.getenv('CLEANUP_VIDEO', 'True').lower() == 'true'  # 是否清理视频文件
         self.user_agent = os.getenv(
             'DOUYIN_USER_AGENT',
