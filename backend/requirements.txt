@@ -1,14 +1,8 @@
 Flask
 Flask-CORS
 Flask-SQLAlchemy
+gunicorn
 python-dotenv
 SQLAlchemy
 requests
 beautifulsoup4
-wechatpy
-python-json-logger
-tqdm
-dashscope
-whisper
-jieba
-summa
