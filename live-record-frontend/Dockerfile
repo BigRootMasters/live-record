@@ -5,7 +5,7 @@ FROM node:18-alpine as build
 WORKDIR /app
 
 # 复制依赖文件
-COPY package.json package-lock.json ./
+COPY package*.json ./
 
 # 安装依赖
 RUN npm install

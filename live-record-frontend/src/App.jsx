@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Layout, Menu, Tag } from 'antd'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { HomeOutlined, UserOutlined, VideoCameraOutlined, FileTextOutlined, SettingOutlined } from '@ant-design/icons'
+import { systemAPI } from './api'
 import './App.css'
 
 const { Header, Content, Sider } = Layout
@@ -9,6 +10,20 @@ const { Header, Content, Sider } = Layout
 function App() {
   const location = useLocation()
   const currentPath = location.pathname
+  const [transcriptionEnabled, setTranscriptionEnabled] = useState(false)
+
+  useEffect(() => {
+    const fetchSystemStatus = async () => {
+      try {
+        const data = await systemAPI.getSystemStatus()
+        setTranscriptionEnabled(Boolean(data?.features?.transcription_enabled))
+      } catch (error) {
+        console.error('获取系统功能配置失败:', error)
+      }
+    }
+
+    fetchSystemStatus()
+  }, [])
 
   // 菜单项配置
   const menuItems = [
@@ -28,23 +43,28 @@ function App() {
       label: <Link to="/recordings">录制记录</Link>
     },
     {
-      key: '/summaries',
-      icon: <FileTextOutlined />,
-      label: <Link to="/summaries">文字稿</Link>
-    },
-    {
       key: '/settings',
       icon: <SettingOutlined />,
       label: <Link to="/settings">系统设置</Link>
     }
   ]
 
+  if (transcriptionEnabled) {
+    menuItems.splice(3, 0, {
+      key: '/summaries',
+      icon: <FileTextOutlined />,
+      label: <Link to="/summaries">文字稿</Link>
+    })
+  }
+
   return (
     <Layout>
       <Header className="header">
         <div className="logo">抖音直播录制系统</div>
         <div className="header-actions">
-          <Tag color="blue">配置文件驱动</Tag>
+          <Tag color={transcriptionEnabled ? 'blue' : 'green'}>
+            {transcriptionEnabled ? '录制 + 转写' : '纯录制模式'}
+          </Tag>
         </div>
       </Header>
       <Layout>

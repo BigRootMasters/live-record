@@ -11,6 +11,7 @@ from app.services.content_analyzer import content_analyzer
 from app.services.live_monitor import live_monitor
 from app.services.notification_service import notification_service
 from app.services.video_recorder import video_recorder
+from app.utils.features import is_transcription_enabled
 
 load_dotenv()
 
@@ -46,21 +47,24 @@ class TaskScheduler:
         monitor_thread.start()
         self.threads.append(monitor_thread)
 
-        analyzer_thread = Thread(
-            target=self._run_with_app_context,
-            args=(self._run_content_analyzer,),
-            daemon=True,
-        )
-        analyzer_thread.start()
-        self.threads.append(analyzer_thread)
+        if is_transcription_enabled():
+            analyzer_thread = Thread(
+                target=self._run_with_app_context,
+                args=(self._run_content_analyzer,),
+                daemon=True,
+            )
+            analyzer_thread.start()
+            self.threads.append(analyzer_thread)
 
-        notification_thread = Thread(
-            target=self._run_with_app_context,
-            args=(self._run_notification_service,),
-            daemon=True,
-        )
-        notification_thread.start()
-        self.threads.append(notification_thread)
+            notification_thread = Thread(
+                target=self._run_with_app_context,
+                args=(self._run_notification_service,),
+                daemon=True,
+            )
+            notification_thread.start()
+            self.threads.append(notification_thread)
+        else:
+            logger.info("Transcription is disabled; analyzer and summary notification tasks will not start")
 
         maintenance_thread = Thread(
             target=self._run_with_app_context,
@@ -136,6 +140,10 @@ class TaskScheduler:
                 time.sleep(3600)
 
     def _analyze_pending_recordings(self):
+        if not is_transcription_enabled():
+            logger.info("Transcription is disabled; skipping pending recording analyzer")
+            return
+
         logger.info("Checking for completed recordings that need transcription")
 
         try:

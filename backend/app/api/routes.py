@@ -6,6 +6,7 @@ from app.services.douyin_live_resolver import douyin_live_resolver
 from app.services.live_monitor import live_monitor
 from app.services.live_discovery_service import live_discovery_service
 from app.services.notification_service import notification_service
+from app.utils.features import is_transcription_enabled
 from app.utils.signed_media import resolve_media_token
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
@@ -220,6 +221,18 @@ def stop_recording(recording_id):
             'video_duration': refreshed.video_duration
         }), 500
 
+    if not is_transcription_enabled():
+        return jsonify({
+            'success': True,
+            'message': 'Recording stopped successfully',
+            'recording_id': refreshed.id,
+            'status': refreshed.status,
+            'end_time': refreshed.end_time.isoformat() if refreshed.end_time else None,
+            'video_duration': refreshed.video_duration,
+            'summary_id': None,
+            'summary_status': None
+        }), 200
+
     transcription_success = content_analyzer.analyze_recording(recording_id)
     refreshed = Recording.query.options(joinedload(Recording.summary)).filter_by(id=recording_id).first()
 
@@ -322,6 +335,12 @@ def get_recording(recording_id):
 @bp.route('/recordings/<int:recording_id>/transcribe', methods=['POST'])
 def transcribe_recording(recording_id):
     """手动触发某条录制的转写流程"""
+    if not is_transcription_enabled():
+        return jsonify({
+            'success': False,
+            'message': 'Transcription is disabled in record-only mode'
+        }), 409
+
     recording = Recording.query.filter_by(id=recording_id).first()
     if not recording:
         return jsonify({'error': 'Recording not found'}), 404
@@ -550,6 +569,9 @@ def get_system_status():
     summary_count = Summary.query.count()
     
     return jsonify({
+        'features': {
+            'transcription_enabled': is_transcription_enabled()
+        },
         'storage': {
             'video_size': video_size,
             'summary_size': summary_size,

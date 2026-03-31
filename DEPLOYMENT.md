@@ -81,19 +81,12 @@ SUMMARY_STORAGE_PATH=./data/summaries
 # 抖音配置
 DOUYIN_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36
 
-# OpenAI API配置
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-3.5-turbo
-
-# 邮件配置
-EMAIL_SMTP_SERVER=smtp.qq.com
-EMAIL_SMTP_PORT=587
-EMAIL_SENDER=your_email@qq.com
-EMAIL_PASSWORD=your_email_password_here
-EMAIL_RECIPIENTS=your_recipient_email@example.com
+# 纯录制配置
+ENABLE_TRANSCRIPTION=False
 
 # 微信机器人配置
 WECHAT_WEBHOOK_URL=your_wechat_webhook_url_here
+AUTO_NOTIFY_ON_TRANSCRIBE=False
 
 # 日志配置
 LOG_LEVEL=INFO

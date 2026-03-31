@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react'
-import { Button, message, Space, Spin, Table, Tag } from 'antd'
-import { FileTextOutlined } from '@ant-design/icons'
+import { message, Spin, Table, Tag } from 'antd'
 
 import { recordingAPI } from '../api'
 
 const statusMeta = {
   recording: { color: 'blue', text: '录制中' },
-  completed: { color: 'green', text: '待转写' },
+  completed: { color: 'green', text: '已录制' },
   transcribing: { color: 'processing', text: '转写中' },
   transcribed: { color: 'cyan', text: '已转写' },
   notified: { color: 'cyan', text: '已通知' },
@@ -58,19 +57,6 @@ const columns = [
     dataIndex: 'video_path',
     key: 'video_path',
     ellipsis: true
-  },
-  {
-    title: '操作',
-    key: 'action',
-    render: (_, record) => (
-      <Space size="middle">
-        {(record.status === 'transcribed' || record.status === 'notified') && (
-          <Button icon={<FileTextOutlined />} disabled>
-            文字稿已生成
-          </Button>
-        )}
-      </Space>
-    )
   }
 ]
 

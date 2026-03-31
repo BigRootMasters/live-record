@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, Progress, List, Tag } from 'antd'
+import { Alert, Card, Row, Col, Statistic, Progress, List, Tag } from 'antd'
 import { UserOutlined, VideoCameraOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, AlertOutlined } from '@ant-design/icons'
 import { summaryAPI, systemAPI } from '../api'
 
 function HomePage() {
   const [systemStatus, setSystemStatus] = useState(null)
   const [recentSummaries, setRecentSummaries] = useState([])
+  const transcriptionEnabled = Boolean(systemStatus?.features?.transcription_enabled)
+
   // 获取系统状态
   useEffect(() => {
     const fetchSystemStatus = async () => {
@@ -21,6 +23,11 @@ function HomePage() {
   }, [])
 
   useEffect(() => {
+    if (!transcriptionEnabled) {
+      setRecentSummaries([])
+      return
+    }
+
     const fetchRecentSummaries = async () => {
       try {
         const data = await summaryAPI.getSummaries()
@@ -31,7 +38,7 @@ function HomePage() {
     }
 
     fetchRecentSummaries()
-  }, [])
+  }, [transcriptionEnabled])
 
   // 计算存储使用百分比
   const storageUsage = systemStatus ? {
@@ -66,10 +73,10 @@ function HomePage() {
               </Col>
               <Col xs={24} sm={12} md={8}>
                 <Statistic
-                  title="文字稿数量"
-                  value={systemStatus?.database.summary_count || 0}
+                  title={transcriptionEnabled ? '文字稿数量' : '当前模式'}
+                  value={transcriptionEnabled ? (systemStatus?.database.summary_count || 0) : '纯录制'}
                   prefix={<FileTextOutlined />}
-                  suffix="条"
+                  suffix={transcriptionEnabled ? '条' : ''}
                 />
               </Col>
             </Row>
@@ -89,7 +96,7 @@ function HomePage() {
                 </div>
                 <div className="storage-item">
                   <div className="storage-label">
-                    <span>文字稿文件</span>
+                    <span>{transcriptionEnabled ? '文字稿文件' : '文字稿文件（历史）'}</span>
                     <span>{storageUsage.summary} MB</span>
                   </div>
                   <Progress percent={storageUsage.percentage} size="small" />
@@ -110,24 +117,33 @@ function HomePage() {
 
         <Col xs={24} md={12}>
           <Card title="最近文字稿" bordered={false}>
-            <List
-              dataSource={recentSummaries}
-              renderItem={(item) => (
-                <List.Item>
-                  <List.Item.Meta
-                    title={
-                      <div className="summary-title">
-                        <span>{item.recording?.anchor?.name || '-'}</span>
-                        <span className="summary-date">{item.recording?.start_time ? new Date(item.recording.start_time).toLocaleDateString() : '-'}</span>
-                      </div>
-                    }
-                    description={item.content_preview || item.content || '暂无文字稿'}
-                  />
-                  <Tag color="blue">{item.status || 'completed'}</Tag>
-                </List.Item>
-              )}
-              locale={{ emptyText: '暂无文字稿数据' }}
-            />
+            {transcriptionEnabled ? (
+              <List
+                dataSource={recentSummaries}
+                renderItem={(item) => (
+                  <List.Item>
+                    <List.Item.Meta
+                      title={
+                        <div className="summary-title">
+                          <span>{item.recording?.anchor?.name || '-'}</span>
+                          <span className="summary-date">{item.recording?.start_time ? new Date(item.recording.start_time).toLocaleDateString() : '-'}</span>
+                        </div>
+                      }
+                      description={item.content_preview || item.content || '暂无文字稿'}
+                    />
+                    <Tag color="blue">{item.status || 'completed'}</Tag>
+                  </List.Item>
+                )}
+                locale={{ emptyText: '暂无文字稿数据' }}
+              />
+            ) : (
+              <Alert
+                type="success"
+                showIcon
+                message="当前为纯录制模式"
+                description="新录制任务完成后会直接保留音视频文件，不再触发文字转写、摘要生成和通知发送。"
+              />
+            )}
           </Card>
         </Col>
 
