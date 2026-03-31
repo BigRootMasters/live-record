@@ -4,11 +4,14 @@ x-backend-env: &backend-env
   FLASK_ENV: production
   VIDEO_STORAGE_PATH: /app/data/videos
   SUMMARY_STORAGE_PATH: /app/data/summaries
+  FFMPEG_BIN: ${FFMPEG_BIN:-ffmpeg}
+  FFPROBE_BIN: ${FFPROBE_BIN:-ffprobe}
   DATABASE_URL: sqlite:////app/data/app.db
   ANCHOR_CONFIG_PATH: /app/config/anchors.json
   USE_REAL_API: ${USE_REAL_API:-True}
   CHECK_INTERVAL: ${CHECK_INTERVAL:-120}
   MAX_RECORDING_DURATION: ${MAX_RECORDING_DURATION:-9000}
+  RECORDING_RETENTION_DAYS: ${RECORDING_RETENTION_DAYS:-7}
   CLEANUP_VIDEO: ${CLEANUP_VIDEO:-True}
   ENABLE_TRANSCRIPTION: ${ENABLE_TRANSCRIPTION:-False}
   TRANSCRIPTION_PROVIDER: ${TRANSCRIPTION_PROVIDER:-local}
@@ -23,6 +26,11 @@ x-backend-env: &backend-env
   WECHAT_WEBHOOK_URL: ${WECHAT_WEBHOOK_URL}
   WECHAT_TIMEOUT: ${WECHAT_TIMEOUT:-10}
   WECHAT_RETRIES: ${WECHAT_RETRIES:-3}
+  AUTO_SEND_AUDIO_ON_RECORDING_COMPLETE: ${AUTO_SEND_AUDIO_ON_RECORDING_COMPLETE:-True}
+  WECHAT_AUDIO_BITRATE: ${WECHAT_AUDIO_BITRATE:-16k}
+  WECHAT_AUDIO_SAMPLE_RATE: ${WECHAT_AUDIO_SAMPLE_RATE:-16000}
+  WECHAT_AUDIO_CHANNELS: ${WECHAT_AUDIO_CHANNELS:-1}
+  WECHAT_AUDIO_MAX_MB: ${WECHAT_AUDIO_MAX_MB:-20}
   TRANSCRIPT_BASE_URL: ${TRANSCRIPT_BASE_URL}
   SUMMARY_SEND_TIME: ${SUMMARY_SEND_TIME:-08:00}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -51,18 +59,6 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/config:/app/config:ro
-    depends_on:
-      - backend
-    networks:
-      - app-network
-    restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./live-record-frontend
-    container_name: live-record-frontend
-    ports:
-      - "80:80"
     depends_on:
       - backend
     networks:

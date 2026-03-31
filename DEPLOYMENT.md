@@ -77,6 +77,8 @@ DATABASE_URL=sqlite:///./data.db
 # 视频存储配置
 VIDEO_STORAGE_PATH=./data/videos
 SUMMARY_STORAGE_PATH=./data/summaries
+FFMPEG_BIN=ffmpeg
+FFPROBE_BIN=ffprobe
 
 # 抖音配置
 DOUYIN_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36
@@ -86,6 +88,11 @@ ENABLE_TRANSCRIPTION=False
 
 # 微信机器人配置
 WECHAT_WEBHOOK_URL=your_wechat_webhook_url_here
+AUTO_SEND_AUDIO_ON_RECORDING_COMPLETE=True
+WECHAT_AUDIO_BITRATE=16k
+WECHAT_AUDIO_SAMPLE_RATE=16000
+WECHAT_AUDIO_CHANNELS=1
+WECHAT_AUDIO_MAX_MB=20
 AUTO_NOTIFY_ON_TRANSCRIBE=False
 
 # 日志配置
@@ -94,6 +101,8 @@ LOG_FILE=./logs/app.log
 
 # 定时任务配置
 CHECK_INTERVAL=300  # 检查主播是否开播的间隔（秒）
+MAX_RECORDING_DURATION=9000  # 单次录制的最长秒数
+RECORDING_RETENTION_DAYS=7  # 录制文件保留天数
 RECORDING_QUALITY=720p  # 录制质量
 SUMMARY_SEND_TIME=08:00  # 摘要发送时间
 ```
@@ -188,9 +197,9 @@ journalctl -u live-record -f
 tail -f ./logs/app.log
 ```
 
-## 四、Nginx配置（可选）
+## 四、访问与反向代理（可选）
 
-如果您希望使用Nginx作为反向代理，可以按照以下步骤配置：
+如果您希望通过域名访问后端 API，可以为 Flask/Gunicorn 增加 Nginx 反向代理。
 
 ### 1. 安装Nginx
 

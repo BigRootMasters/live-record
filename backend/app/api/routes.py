@@ -208,7 +208,7 @@ def stop_recording(recording_id):
             'status': recording.status
         }), 200
 
-    live_monitor.stop_recording(recording)
+    stop_result = live_monitor.stop_recording(recording)
     refreshed = Recording.query.options(joinedload(Recording.summary)).filter_by(id=recording_id).first()
 
     if refreshed.status != 'completed':
@@ -222,13 +222,15 @@ def stop_recording(recording_id):
         }), 500
 
     if not is_transcription_enabled():
+        audio_sent = bool((stop_result or {}).get('audio_sent'))
         return jsonify({
             'success': True,
-            'message': 'Recording stopped successfully',
+            'message': 'Recording stopped and audio sent to Wechat' if audio_sent else 'Recording stopped successfully',
             'recording_id': refreshed.id,
             'status': refreshed.status,
             'end_time': refreshed.end_time.isoformat() if refreshed.end_time else None,
             'video_duration': refreshed.video_duration,
+            'audio_notification_sent': audio_sent,
             'summary_id': None,
             'summary_status': None
         }), 200

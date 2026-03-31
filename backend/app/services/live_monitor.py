@@ -3,6 +3,7 @@ import logging
 from datetime import datetime
 from app.models import db, Anchor, Recording
 from app.services.live_discovery_service import live_discovery_service
+from app.services.notification_service import notification_service
 from app.services.video_recorder import video_recorder
 import os
 from dotenv import load_dotenv
@@ -170,8 +171,21 @@ class LiveMonitor:
         processed = video_recorder.process_recording(recording.id)
         if not processed:
             logger.warning('Post-processing failed for recording ID: %s', recording.id)
-        
+
+        audio_sent = False
+        if processed:
+            audio_sent = notification_service.send_recording_audio(recording.id)
+            if audio_sent:
+                logger.info('Recording audio notification sent for recording ID: %s', recording.id)
+            else:
+                logger.warning('Recording audio notification was not sent for recording ID: %s', recording.id)
+
         logger.info(f'Recording stopped for recording ID: {recording.id}')
+        return {
+            'stopped': stopped,
+            'processed': processed,
+            'audio_sent': audio_sent,
+        }
     
     def _check_live_status(self, anchor):
         """检查直播状态"""

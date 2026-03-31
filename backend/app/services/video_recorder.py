@@ -2,9 +2,9 @@ import os
 import subprocess
 import time
 import logging
-import traceback
 from datetime import datetime, timedelta
 from app.models import db, Recording
+from app.utils.media_tools import get_ffmpeg_bin, get_ffprobe_bin
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -19,14 +19,17 @@ class VideoRecorder:
     def __init__(self):
         self.recording_quality = os.getenv('RECORDING_QUALITY', '720p')
         self.recording_processes = {}
-        self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 120))  # 最大录制时长
+        self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 9000))  # 最大录制时长
         self.cleanup_video = os.getenv('CLEANUP_VIDEO', 'True').lower() == 'true'  # 是否清理视频文件
+        self.recording_retention_days = int(os.getenv('RECORDING_RETENTION_DAYS', 7))
         self.user_agent = os.getenv(
             'DOUYIN_USER_AGENT',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
             '(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
         )
         self.startup_check_seconds = int(os.getenv('FFMPEG_STARTUP_CHECK_SECONDS', 2))
+        self.ffmpeg_bin = get_ffmpeg_bin()
+        self.ffprobe_bin = get_ffprobe_bin()
     
     def start_recording(self, recording_id, stream_url, output_path):
         """开始录制视频"""
@@ -38,8 +41,7 @@ class VideoRecorder:
         
         # 构建FFmpeg命令
         cmd = [
-            'ffmpeg',
-            '-nostdin',
+            self.ffmpeg_bin,
             '-user_agent', self.user_agent,
             '-rw_timeout', '15000000',
         ]
@@ -69,6 +71,7 @@ class VideoRecorder:
             # 启动录制进程
             process = subprocess.Popen(
                 cmd,
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -105,15 +108,23 @@ class VideoRecorder:
         if recording_id in self.recording_processes:
             process = self.recording_processes[recording_id]
             try:
-                # 发送停止信号
-                process.terminate()
-                # 等待进程结束
-                process.wait(timeout=10)
+                # Ask ffmpeg to finish writing container metadata before exiting.
+                if process.stdin and not process.stdin.closed:
+                    process.stdin.write('q\n')
+                    process.stdin.flush()
+
+                process.wait(timeout=15)
                 # 从记录中移除
                 del self.recording_processes[recording_id]
                 logger.info(f'Video recording stopped for recording ID: {recording_id}')
                 return True
             except Exception as e:
+                try:
+                    process.terminate()
+                    process.wait(timeout=10)
+                except Exception:
+                    pass
+                self.recording_processes.pop(recording_id, None)
                 logger.error(f'Error stopping video recording: {e}')
                 return False
         else:
@@ -137,7 +148,7 @@ class VideoRecorder:
         try:
             # 使用FFprobe获取视频时长
             cmd = [
-                'ffprobe',
+                self.ffprobe_bin,
                 '-v', 'error',
                 '-show_entries', 'format=duration',
                 '-of', 'default=noprint_wrappers=1:nokey=1',
@@ -221,8 +232,9 @@ class VideoRecorder:
             db.session.rollback()
             return False
     
-    def cleanup_old_recordings(self, days=7):
+    def cleanup_old_recordings(self, days=None):
         """清理旧的录制文件"""
+        days = self.recording_retention_days if days is None else days
         logger.info(f'Cleaning up recordings older than {days} days')
         
         try:
