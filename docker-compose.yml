@@ -35,10 +35,18 @@ x-backend-env: &backend-env
   SUMMARY_SEND_TIME: ${SUMMARY_SEND_TIME:-08:00}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
 
+x-backend-build: &backend-build
+  context: ./backend
+  args:
+    APT_MIRROR: ${DOCKER_APT_MIRROR:-https://mirrors.aliyun.com/debian}
+    APT_SECURITY_MIRROR: ${DOCKER_APT_SECURITY_MIRROR:-https://mirrors.aliyun.com/debian-security}
+    PIP_INDEX_URL: ${DOCKER_PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
+    PIP_EXTRA_INDEX_URL: ${DOCKER_PIP_EXTRA_INDEX_URL:-}
+    PIP_TRUSTED_HOST: ${DOCKER_PIP_TRUSTED_HOST:-mirrors.aliyun.com}
+
 services:
   backend:
-    build:
-      context: ./backend
+    build: *backend-build
     container_name: live-record-backend
     ports:
       - "5000:5000"
@@ -51,8 +59,7 @@ services:
     restart: unless-stopped
 
   scheduler:
-    build:
-      context: ./backend
+    build: *backend-build
     container_name: live-record-scheduler
     command: ["python", "run_scheduler.py"]
     environment: *backend-env

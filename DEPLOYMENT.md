@@ -40,6 +40,26 @@ git clone https://github.com/your_username/live-record.git
 cd live-record/backend
 ```
 
+### 1.1 推荐先配置 Docker 镜像加速
+
+如果您使用 `docker compose` 部署，建议先在服务器上配置 Docker Hub 加速器：
+
+```bash
+mkdir -p /etc/docker
+cat > /etc/docker/daemon.json <<'EOF'
+{
+  "registry-mirrors": [
+    "https://your-accelerator-id.mirror.aliyuncs.com"
+  ]
+}
+EOF
+
+systemctl daemon-reload
+systemctl restart docker
+```
+
+项目内的 [`docker-compose.yml`](./docker-compose.yml) 已经默认配置了阿里云 `apt` / `pip` 构建源，无需再手工修改 `Dockerfile`。
+
 ### 2. 创建虚拟环境并安装依赖
 
 ```bash
