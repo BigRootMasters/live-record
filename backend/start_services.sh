@@ -2,7 +2,11 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VENV_DIR="${VENV_DIR:-$PROJECT_DIR/.venv}"
+DEFAULT_VENV_DIR="$PROJECT_DIR/.venv"
+if [ ! -f "$DEFAULT_VENV_DIR/bin/activate" ] && [ -f "$PROJECT_DIR/../.venv/bin/activate" ]; then
+  DEFAULT_VENV_DIR="$PROJECT_DIR/../.venv"
+fi
+VENV_DIR="${VENV_DIR:-$DEFAULT_VENV_DIR}"
 LOG_DIR="$PROJECT_DIR/logs"
 RUN_DIR="$PROJECT_DIR/run"
 
