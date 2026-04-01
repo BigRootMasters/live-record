@@ -16,6 +16,7 @@ def _configure_logging(flask_app):
 
     log_file = os.getenv("LOG_FILE", "./logs/app.log")
     log_level = os.getenv("LOG_LEVEL", "INFO")
+    level = getattr(logging, log_level.upper(), logging.INFO)
 
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
@@ -28,23 +29,24 @@ def _configure_logging(flask_app):
         maxBytes=10 * 1024 * 1024,
         backupCount=5,
     )
-    file_handler.setLevel(getattr(logging, log_level))
+    file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
 
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(getattr(logging, log_level))
+    console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
-
-    flask_app.logger.handlers.clear()
-    flask_app.logger.addHandler(file_handler)
-    flask_app.logger.addHandler(console_handler)
-    flask_app.logger.setLevel(getattr(logging, log_level))
 
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
-    root_logger.setLevel(getattr(logging, log_level))
+    root_logger.setLevel(level)
+
+    # Avoid duplicate records from the `app.*` logger tree by routing Flask logs
+    # through the configured root handlers only.
+    flask_app.logger.handlers.clear()
+    flask_app.logger.setLevel(level)
+    flask_app.logger.propagate = True
 
     _configure_logging._configured = True
 

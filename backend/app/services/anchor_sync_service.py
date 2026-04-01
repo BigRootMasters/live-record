@@ -1,6 +1,7 @@
 import logging
 
 from dotenv import load_dotenv
+from sqlalchemy.exc import IntegrityError
 
 from app.models import Anchor, db
 from app.services.anchor_config_service import anchor_config_service
@@ -29,7 +30,6 @@ class AnchorSyncService:
                 continue
 
             configured_ids.add(douyin_id)
-            existing = Anchor.query.filter_by(douyin_id=douyin_id).first()
             payload = {
                 'name': name,
                 'room_id': item.get('room_id'),
@@ -37,19 +37,11 @@ class AnchorSyncService:
                 'is_followed': item.get('is_followed', True),
             }
 
-            if existing:
-                changed = False
-                for field, value in payload.items():
-                    if getattr(existing, field) != value:
-                        setattr(existing, field, value)
-                        changed = True
-                if changed:
-                    updated += 1
-            else:
-                db.session.add(Anchor(douyin_id=douyin_id, **payload))
+            result = self._upsert_anchor(douyin_id, payload)
+            if result == 'created':
                 created += 1
-
-        db.session.flush()
+            elif result == 'updated':
+                updated += 1
 
         managed_anchors = Anchor.query.all()
         for anchor in managed_anchors:
@@ -71,6 +63,40 @@ class AnchorSyncService:
             'disabled': disabled,
             'total': len(configured_ids),
         }
+
+    def _apply_payload(self, anchor, payload):
+        changed = False
+        for field, value in payload.items():
+            if getattr(anchor, field) != value:
+                setattr(anchor, field, value)
+                changed = True
+        return changed
+
+    def _upsert_anchor(self, douyin_id, payload):
+        existing = Anchor.query.filter_by(douyin_id=douyin_id).first()
+        if existing:
+            if self._apply_payload(existing, payload):
+                db.session.commit()
+                return 'updated'
+            return 'unchanged'
+
+        db.session.add(Anchor(douyin_id=douyin_id, **payload))
+        try:
+            db.session.commit()
+            return 'created'
+        except IntegrityError:
+            # Another process may have inserted the same douyin_id concurrently.
+            db.session.rollback()
+            existing = Anchor.query.filter_by(douyin_id=douyin_id).first()
+            if not existing:
+                raise
+            if self._apply_payload(existing, payload):
+                db.session.commit()
+                return 'updated'
+            return 'unchanged'
+        except Exception:
+            db.session.rollback()
+            raise
 
 
 anchor_sync_service = AnchorSyncService()
