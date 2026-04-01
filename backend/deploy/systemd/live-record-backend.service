@@ -1,0 +1,14 @@
+[Unit]
+Description=Live Record Backend API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/live-record/backend
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/live-record/backend/.venv/bin/gunicorn -c gunicorn.conf.py app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

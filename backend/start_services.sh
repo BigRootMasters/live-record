@@ -1,31 +1,52 @@
 #!/bin/bash
+set -euo pipefail
 
-# 启动所有服务的脚本
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_DIR="${VENV_DIR:-$PROJECT_DIR/.venv}"
+LOG_DIR="$PROJECT_DIR/logs"
+RUN_DIR="$PROJECT_DIR/run"
 
-# 进入项目目录
-cd "$(dirname "$0")"
+mkdir -p "$LOG_DIR" "$RUN_DIR"
 
-# 激活虚拟环境
-source venv/bin/activate
-
-# 启动Flask应用
-echo "Starting Flask application..."
-gunicorn -c gunicorn.conf.py app:app &
-
-# 等待应用启动
-sleep 5
-
-# 检查应用是否启动成功
-if curl -s http://localhost:5000/health; then
-    echo "Flask application started successfully!"
-else
-    echo "Failed to start Flask application!"
-    exit 1
+if [ ! -f "$VENV_DIR/bin/activate" ]; then
+  echo "Virtualenv not found: $VENV_DIR"
+  echo "Create it first, for example:"
+  echo "  python3.9 -m venv $VENV_DIR"
+  exit 1
 fi
 
-# 启动定时任务服务
-echo "Starting task scheduler..."
-python run_scheduler.py
+cd "$PROJECT_DIR"
+source "$VENV_DIR/bin/activate"
 
-echo "All services started successfully!"
-echo "System is now monitoring for live streams..."
+if [ -f "$RUN_DIR/backend.pid" ] && kill -0 "$(cat "$RUN_DIR/backend.pid")" 2>/dev/null; then
+  echo "Backend is already running with PID $(cat "$RUN_DIR/backend.pid")"
+else
+  echo "Starting backend..."
+  nohup gunicorn -c gunicorn.conf.py app:app > "$LOG_DIR/backend.out.log" 2>&1 &
+  echo $! > "$RUN_DIR/backend.pid"
+fi
+
+for _ in $(seq 1 15); do
+  if curl -fsS http://127.0.0.1:5000/health >/dev/null 2>&1; then
+    echo "Backend health check passed"
+    break
+  fi
+  sleep 1
+done
+
+if ! curl -fsS http://127.0.0.1:5000/health >/dev/null 2>&1; then
+  echo "Backend failed to start, see $LOG_DIR/backend.out.log"
+  exit 1
+fi
+
+if [ -f "$RUN_DIR/scheduler.pid" ] && kill -0 "$(cat "$RUN_DIR/scheduler.pid")" 2>/dev/null; then
+  echo "Scheduler is already running with PID $(cat "$RUN_DIR/scheduler.pid")"
+else
+  echo "Starting scheduler..."
+  nohup python run_scheduler.py > "$LOG_DIR/scheduler.out.log" 2>&1 &
+  echo $! > "$RUN_DIR/scheduler.pid"
+fi
+
+echo "Services started"
+echo "Backend log:   $LOG_DIR/backend.out.log"
+echo "Scheduler log: $LOG_DIR/scheduler.out.log"

@@ -1,489 +1,274 @@
-# 阿里云服务器部署指南
+# Deployment Guide
 
-本文档详细说明如何将抖音财经主播直播录制系统部署到阿里云服务器。
+当前项目推荐使用“普通安装模式”部署，而不是 Docker。原因很简单：
 
-## 一、服务器准备
+- 只有 `backend` 和 `scheduler` 两个长期进程
+- 服务器上直接安装 `ffmpeg` 更稳
+- 中国大陆服务器首次构建 Docker 镜像往往会慢在基础镜像、`apt` 和 `pip`
 
-### 1. 登录阿里云服务器
+这套思路参考了 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 常见的源码运行方式：宿主机安装 `ffmpeg`，项目自身走 Python 虚拟环境。
 
-使用SSH工具（如PuTTY、Xshell等）登录到您的阿里云服务器。
+## 1. 服务器要求
+
+- Linux 服务器
+- Python `3.9+`
+- `ffmpeg` / `ffprobe`
+- Git
+- 可访问抖音直播页面
+
+## 2. 安装系统依赖
+
+### Alibaba Cloud Linux / Rocky / CentOS Stream
 
 ```bash
-ssh root@your_server_ip
+dnf install -y python39 python39-devel git ffmpeg
+python3.9 --version
+ffmpeg -version | head -n 1
 ```
 
-### 2. 安装必要的系统依赖
+### Ubuntu / Debian
 
 ```bash
-# 更新系统
-apt update && apt upgrade -y
-
-# 安装必要的软件包
-apt install -y python3 python3-pip python3-venv ffmpeg git
-
-# 安装FFmpeg（用于视频处理）
-apt install -y ffmpeg
+apt-get update
+apt-get install -y python3 python3-venv python3-pip git ffmpeg
+python3 --version
+ffmpeg -version | head -n 1
 ```
 
-## 二、项目部署
-
-### 1. 克隆项目代码
+## 3. 获取代码
 
 ```bash
-# 进入合适的目录
 cd /opt
-
-# 克隆项目代码
-git clone https://github.com/your_username/live-record.git
-
-# 进入项目目录
-cd live-record/backend
+git clone https://github.com/BigRootMasters/live-record.git
+cd /opt/live-record
+git checkout main
 ```
 
-### 1.1 推荐先配置 Docker 镜像加速
-
-如果您使用 `docker compose` 部署，建议先在服务器上配置 Docker Hub 加速器：
+更新时使用：
 
 ```bash
-mkdir -p /etc/docker
-cat > /etc/docker/daemon.json <<'EOF'
-{
-  "registry-mirrors": [
-    "https://your-accelerator-id.mirror.aliyuncs.com"
-  ]
-}
-EOF
-
-systemctl daemon-reload
-systemctl restart docker
+cd /opt/live-record
+git fetch origin
+git checkout main
+git pull
 ```
 
-项目内的 [`docker-compose.yml`](./docker-compose.yml) 已经默认配置了阿里云 `apt` / `pip` 构建源，无需再手工修改 `Dockerfile`。
+## 4. 配置主播
 
-### 2. 创建虚拟环境并安装依赖
+编辑 [`backend/config/anchors.json`](./backend/config/anchors.json)。
 
-```bash
-# 创建虚拟环境
-python3 -m venv venv
+如果你当前只需要一个主播，可以直接写成：
 
-# 激活虚拟环境
-source venv/bin/activate
-
-# 安装依赖
-pip install -r requirements.txt
+```json
+[
+  {
+    "name": "天霸哥讲财经",
+    "douyin_id": "MS4wLjABAAAAhIZOt35fbbF-cvx6M9FkcZk4S3uwcYJ2CS3MsfvF88GnIiCSC-wakC4woeCxiBNv",
+    "anchor_id": "",
+    "profile_url": "https://www.douyin.com/user/MS4wLjABAAAAhIZOt35fbbF-cvx6M9FkcZk4S3uwcYJ2CS3MsfvF88GnIiCSC-wakC4woeCxiBNv?from_tab_name=live",
+    "live_url": "",
+    "room_id": "",
+    "avatar_url": "",
+    "is_followed": true,
+    "notes": "仅提供主页信息，用于验证主页推导直播入口"
+  }
+]
 ```
 
-### 3. 配置环境变量
+## 5. 创建虚拟环境并安装依赖
 
 ```bash
-# 复制.env文件
+cd /opt/live-record/backend
+python3.9 -m venv .venv
+source .venv/bin/activate
+pip install -U pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/
+pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+```
+
+如果你的服务器只有 `python3`，把 `python3.9` 换成 `python3` 即可。
+
+## 6. 配置 .env
+
+```bash
+cd /opt/live-record/backend
 cp .env.example .env
-
-# 编辑.env文件，填写相关配置
-nano .env
 ```
 
-在.env文件中填写以下配置：
+建议至少确认这些配置：
 
-```
-# 系统配置
+```env
 FLASK_APP=app.py
 FLASK_ENV=production
-SECRET_KEY=your_secret_key_here
+SECRET_KEY=replace-with-a-random-secret
 
-# 数据库配置
 DATABASE_URL=sqlite:///./data.db
-
-# 视频存储配置
-VIDEO_STORAGE_PATH=./data/videos
+VIDEO_STORAGE_PATH=./data/temp_videos
 SUMMARY_STORAGE_PATH=./data/summaries
-FFMPEG_BIN=ffmpeg
-FFPROBE_BIN=ffprobe
+FFMPEG_BIN=/usr/bin/ffmpeg
+FFPROBE_BIN=/usr/bin/ffprobe
 
-# 抖音配置
-DOUYIN_USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36
+USE_REAL_API=True
+ANCHOR_CONFIG_PATH=./config/anchors.json
 
-# 纯录制配置
-ENABLE_TRANSCRIPTION=False
-
-# 微信机器人配置
-WECHAT_WEBHOOK_URL=your_wechat_webhook_url_here
+WECHAT_WEBHOOK_URL=你的企业微信机器人 webhook
+WECHAT_TIMEOUT=10
+WECHAT_RETRIES=3
 AUTO_SEND_AUDIO_ON_RECORDING_COMPLETE=True
 WECHAT_AUDIO_BITRATE=16k
 WECHAT_AUDIO_SAMPLE_RATE=16000
 WECHAT_AUDIO_CHANNELS=1
 WECHAT_AUDIO_MAX_MB=20
+
+ENABLE_TRANSCRIPTION=False
 AUTO_NOTIFY_ON_TRANSCRIBE=False
 
-# 日志配置
+CHECK_INTERVAL=120
+MAX_RECORDING_DURATION=9000
+RECORDING_RETENTION_DAYS=7
+CLEANUP_VIDEO=False
 LOG_LEVEL=INFO
-LOG_FILE=./logs/app.log
-
-# 定时任务配置
-CHECK_INTERVAL=300  # 检查主播是否开播的间隔（秒）
-MAX_RECORDING_DURATION=9000  # 单次录制的最长秒数
-RECORDING_RETENTION_DAYS=7  # 录制文件保留天数
-RECORDING_QUALITY=720p  # 录制质量
-SUMMARY_SEND_TIME=08:00  # 摘要发送时间
 ```
 
-### 4. 创建必要的目录
+## 7. 创建运行目录
 
 ```bash
-# 创建数据存储目录
-mkdir -p data/videos data/summaries logs
-
-# 设置目录权限
-chmod -R 755 data logs
+cd /opt/live-record/backend
+mkdir -p data/temp_videos data/summaries logs run
 ```
 
-### 5. 配置Gunicorn（生产环境WSGI服务器）
+## 8. 手工验证启动
+
+### 启动 API
 
 ```bash
-# 安装Gunicorn
-pip install gunicorn
-
-# 创建Gunicorn配置文件
-nano gunicorn.conf.py
+cd /opt/live-record/backend
+source .venv/bin/activate
+gunicorn -c gunicorn.conf.py app:app
 ```
 
-在gunicorn.conf.py文件中添加以下内容：
-
-```python
-# Gunicorn配置文件
-import multiprocessing
-
-bind = "0.0.0.0:5000"
-workers = multiprocessing.cpu_count() * 2 + 1
-worker_class = "gthread"
-threads = 2
-timeout = 300
-accesslog = "./logs/gunicorn_access.log"
-errorlog = "./logs/gunicorn_error.log"
-loglevel = "info"
-```
-
-## 三、服务管理
-
-### 1. 创建Systemd服务文件
+新开终端验证：
 
 ```bash
-# 创建服务文件
-nano /etc/systemd/system/live-record.service
+curl http://127.0.0.1:5000/health
+curl http://127.0.0.1:5000/api/system/status
 ```
 
-在live-record.service文件中添加以下内容：
-
-```ini
-[Unit]
-Description=Douyin Live Recorder Service
-After=network.target
-
-[Service]
-User=root
-WorkingDirectory=/opt/live-record/backend
-Environment="PATH=/opt/live-record/backend/venv/bin"
-ExecStart=/opt/live-record/backend/venv/bin/gunicorn -c gunicorn.conf.py app:app
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-### 2. 启动服务
+### 启动调度器
 
 ```bash
-# 重新加载Systemd配置
+cd /opt/live-record/backend
+source .venv/bin/activate
+python run_scheduler.py
+```
+
+或者直接使用：
+
+```bash
+cd /opt/live-record/backend
+chmod +x start_services.sh stop_services.sh
+./start_services.sh
+```
+
+停止：
+
+```bash
+./stop_services.sh
+```
+
+## 9. 配置 systemd
+
+项目已提供模板：
+
+- [`backend/deploy/systemd/live-record-backend.service`](./backend/deploy/systemd/live-record-backend.service)
+- [`backend/deploy/systemd/live-record-scheduler.service`](./backend/deploy/systemd/live-record-scheduler.service)
+
+默认模板按部署目录 `/opt/live-record/backend` 编写，如果你用的是别的目录，请先修改模板中的路径。
+
+安装方式：
+
+```bash
+cp /opt/live-record/backend/deploy/systemd/live-record-backend.service /etc/systemd/system/
+cp /opt/live-record/backend/deploy/systemd/live-record-scheduler.service /etc/systemd/system/
+
 systemctl daemon-reload
-
-# 启动服务
-systemctl start live-record
-
-# 查看服务状态
-systemctl status live-record
-
-# 设置服务开机自启
-systemctl enable live-record
+systemctl enable --now live-record-backend
+systemctl enable --now live-record-scheduler
 ```
 
-### 3. 查看服务日志
+查看状态：
 
 ```bash
-# 查看服务日志
-journalctl -u live-record -f
-
-# 查看应用日志
-tail -f ./logs/app.log
+systemctl status live-record-backend --no-pager
+systemctl status live-record-scheduler --no-pager
 ```
 
-## 四、访问与反向代理（可选）
-
-如果您希望通过域名访问后端 API，可以为 Flask/Gunicorn 增加 Nginx 反向代理。
-
-### 1. 安装Nginx
+查看日志：
 
 ```bash
-apt install -y nginx
+journalctl -u live-record-backend -f
+journalctl -u live-record-scheduler -f
 ```
 
-### 2. 创建Nginx配置文件
+## 10. 验证录制链路
+
+正常启动后，调度器日志应该看到：
+
+```text
+Starting task scheduler service
+Starting live monitor task
+Transcription is disabled; analyzer and summary notification tasks will not start
+```
+
+如果主播在播，后面应看到：
+
+```text
+Anchor 天霸哥讲财经 is live!
+Starting recording for anchor 天霸哥讲财经
+Video recording started for recording ID: ...
+```
+
+录制结束后应看到：
+
+```text
+Recording ... processed successfully
+Recording audio delivered successfully for recording ...
+```
+
+## 11. 常见问题
+
+### Python 版本过低
+
+如果系统自带 Python 是 `3.6` 或更低，优先安装 `python3.9+` 后再创建虚拟环境。当前项目建议直接用 `3.9+`。
+
+### ffmpeg not found
+
+先检查：
 
 ```bash
-# 创建配置文件
-nano /etc/nginx/sites-available/live-record
+which ffmpeg
+which ffprobe
 ```
 
-在live-record文件中添加以下内容：
+找不到就安装系统包；能找到但路径特殊，就写到 `.env`：
 
-```nginx
-server {
-    listen 80;
-    server_name your_domain.com;
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
+```env
+FFMPEG_BIN=/usr/local/bin/ffmpeg
+FFPROBE_BIN=/usr/local/bin/ffprobe
 ```
 
-### 3. 启用配置并重启Nginx
+### 5000 端口被占用
 
 ```bash
-# 启用配置
-ln -s /etc/nginx/sites-available/live-record /etc/nginx/sites-enabled/
-
-# 测试配置
-nginx -t
-
-# 重启Nginx
-systemctl restart nginx
+ss -ltnp | grep :5000
 ```
 
-## 五、安全配置
+### 为什么这里不推荐 Docker
 
-### 1. 配置防火墙
+如果只是要在一台阿里云服务器上稳定跑：
 
-```bash
-# 查看当前防火墙状态
-ufw status
+- 普通安装模式更轻
+- 更省内存
+- 更容易定位问题
+- 避开首次构建镜像时的网络波动
 
-# 允许SSH访问
-ufw allow ssh
-
-# 允许HTTP访问（如果使用Nginx）
-ufw allow http
-
-# 允许应用端口访问
-ufw allow 5000
-
-# 启用防火墙
-ufw enable
-```
-
-### 2. 设置HTTPS（可选）
-
-如果您有域名，可以使用Let's Encrypt免费证书配置HTTPS：
-
-```bash
-# 安装Certbot
-apt install -y certbot python3-certbot-nginx
-
-# 获取证书
-certbot --nginx -d your_domain.com
-
-# 自动续期配置
-certbot renew --dry-run
-```
-
-## 六、系统监控
-
-### 1. 安装监控工具
-
-```bash
-# 安装htop（系统资源监控）
-apt install -y htop
-
-# 安装netdata（实时性能监控）
-bash <(curl -Ss https://my-netdata.io/kickstart.sh)
-```
-
-### 2. 配置日志监控
-
-```bash
-# 安装logrotate
-apt install -y logrotate
-
-# 创建logrotate配置
-nano /etc/logrotate.d/live-record
-```
-
-在live-record文件中添加以下内容：
-
-```
-/opt/live-record/backend/logs/*.log {
-    daily
-    missingok
-    rotate 7
-    compress
-    delaycompress
-    notifempty
-    create 644 root root
-}
-```
-
-## 七、使用指南
-
-### 1. 添加主播
-
-```bash
-# 使用curl命令添加主播
-curl -X POST http://your_server_ip:5000/api/anchors \
-  -H "Content-Type: application/json" \
-  -d '{"name": "财经主播张三", "douyin_id": "zhangsan123", "room_id": "123456789"}'
-```
-
-### 2. 查看主播列表
-
-```bash
-# 使用curl命令查看主播列表
-curl http://your_server_ip:5000/api/anchors
-```
-
-### 3. 查看系统状态
-
-```bash
-# 使用curl命令查看系统状态
-curl http://your_server_ip:5000/api/system/status
-```
-
-## 八、故障排查
-
-### 1. 服务无法启动
-
-```bash
-# 查看服务状态
-systemctl status live-record
-
-# 查看详细日志
-journalctl -u live-record
-```
-
-### 2. API接口返回500错误
-
-```bash
-# 查看应用日志
-tail -f ./logs/app.log
-```
-
-### 3. 录制功能不工作
-
-```bash
-# 检查FFmpeg是否安装正确
-ffmpeg -version
-
-# 查看录制服务日志
-tail -f ./logs/app.log | grep recording
-```
-
-### 4. 邮件推送失败
-
-```bash
-# 检查邮件配置
-cat .env | grep EMAIL_
-
-# 查看通知服务日志
-tail -f ./logs/app.log | grep notification
-```
-
-## 九、更新项目
-
-### 1. 拉取最新代码
-
-```bash
-# 进入项目目录
-cd /opt/live-record
-
-# 拉取最新代码
-git pull
-
-# 进入backend目录
-cd backend
-
-# 激活虚拟环境
-source venv/bin/activate
-
-# 安装新依赖
-pip install -r requirements.txt
-
-# 重启服务
-systemctl restart live-record
-```
-
-## 十、常见问题
-
-### 1. 阿里云服务器安全组配置
-
-在阿里云控制台中，需要配置安全组规则，允许以下端口的访问：
-
-- 22（SSH）
-- 80（HTTP，可选）
-- 443（HTTPS，可选）
-- 5000（应用端口）
-
-### 2. 抖音API限制
-
-由于抖音API的限制，可能需要使用第三方库或工具来获取直播状态。本项目提供了一个模拟实现，实际使用时需要根据情况进行调整。
-
-### 3. 存储空间管理
-
-随着录制的视频和生成的摘要越来越多，需要定期清理过期的文件，以避免存储空间不足。
-
-```bash
-# 创建清理脚本
-nano cleanup.sh
-```
-
-在cleanup.sh文件中添加以下内容：
-
-```bash
-#!/bin/bash
-
-# 清理30天前的视频文件
-find /opt/live-record/backend/data/videos -type f -mtime +30 -delete
-
-# 清理30天前的摘要文件
-find /opt/live-record/backend/data/summaries -type f -mtime +30 -delete
-
-# 清理过期日志
-find /opt/live-record/backend/logs -type f -mtime +7 -delete
-
-echo "Cleanup completed at $(date)"
-```
-
-```bash
-# 设置脚本执行权限
-chmod +x cleanup.sh
-
-# 执行清理脚本
-./cleanup.sh
-
-# 添加到定时任务
-crontab -e
-```
-
-在crontab文件中添加以下内容（每天凌晨执行）：
-
-```
-0 0 * * * /opt/live-record/backend/cleanup.sh >> /opt/live-record/backend/logs/cleanup.log 2>&1
-```
-
----
-
-部署完成后，系统会自动监测主播的直播状态，当主播开播时自动录制，并在录制完成后提取核心内容，最后通过邮件和微信推送摘要给您。
-
-祝您使用愉快！
+Docker 仍然保留为可选方案，但不再是首推路径。

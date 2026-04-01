@@ -1,0 +1,15 @@
+[Unit]
+Description=Live Record Scheduler
+After=network.target live-record-backend.service
+Requires=live-record-backend.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/live-record/backend
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/live-record/backend/.venv/bin/python run_scheduler.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

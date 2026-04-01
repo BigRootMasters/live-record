@@ -9,4 +9,5 @@ backend/scripts/__pycache__/
 backend/instance/
 backend/data/
 backend/logs/
+backend/run/
 tools/
