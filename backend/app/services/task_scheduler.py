@@ -6,12 +6,8 @@ from threading import Thread
 
 from dotenv import load_dotenv
 
-from app.models import Recording, Summary
-from app.services.content_analyzer import content_analyzer
 from app.services.live_monitor import live_monitor
-from app.services.notification_service import notification_service
 from app.services.video_recorder import video_recorder
-from app.utils.features import is_transcription_enabled
 
 load_dotenv()
 
@@ -25,7 +21,6 @@ class TaskScheduler:
         self.is_running = False
         self.threads = []
         self.flask_app = None
-        self.summary_send_time = os.getenv("SUMMARY_SEND_TIME", "08:00")
         self.backup_interval = int(os.getenv("BACKUP_INTERVAL", 86400))
         self.last_backup_time = datetime.now()
 
@@ -39,6 +34,8 @@ class TaskScheduler:
         self.is_running = True
         self.flask_app = flask_app
 
+        self._recover_stale_recordings()
+
         monitor_thread = Thread(
             target=self._run_with_app_context,
             args=(self._run_live_monitor,),
@@ -46,25 +43,6 @@ class TaskScheduler:
         )
         monitor_thread.start()
         self.threads.append(monitor_thread)
-
-        if is_transcription_enabled():
-            analyzer_thread = Thread(
-                target=self._run_with_app_context,
-                args=(self._run_content_analyzer,),
-                daemon=True,
-            )
-            analyzer_thread.start()
-            self.threads.append(analyzer_thread)
-
-            notification_thread = Thread(
-                target=self._run_with_app_context,
-                args=(self._run_notification_service,),
-                daemon=True,
-            )
-            notification_thread.start()
-            self.threads.append(notification_thread)
-        else:
-            logger.info("Transcription is disabled; analyzer and summary notification tasks will not start")
 
         maintenance_thread = Thread(
             target=self._run_with_app_context,
@@ -74,6 +52,7 @@ class TaskScheduler:
         maintenance_thread.start()
         self.threads.append(maintenance_thread)
 
+        logger.info("Task scheduler is running in record-only mode")
         logger.info("Task scheduler service started successfully")
 
     def stop(self):
@@ -101,32 +80,6 @@ class TaskScheduler:
         logger.info("Starting live monitor task")
         live_monitor.start_monitoring()
 
-    def _run_content_analyzer(self):
-        logger.info("Starting content analyzer task")
-
-        while self.is_running:
-            try:
-                self._analyze_pending_recordings()
-                time.sleep(300)
-            except Exception as exc:
-                logger.error("Error in content analyzer task: %s", exc)
-                time.sleep(300)
-
-    def _run_notification_service(self):
-        logger.info("Starting notification service task")
-
-        while self.is_running:
-            try:
-                current_time = datetime.now().strftime("%H:%M")
-                if current_time == self.summary_send_time:
-                    notification_service.send_daily_summary()
-                    time.sleep(60)
-                else:
-                    time.sleep(60)
-            except Exception as exc:
-                logger.error("Error in notification service task: %s", exc)
-                time.sleep(60)
-
     def _run_maintenance_tasks(self):
         logger.info("Starting maintenance tasks")
 
@@ -139,50 +92,17 @@ class TaskScheduler:
                 logger.error("Error in maintenance tasks: %s", exc)
                 time.sleep(3600)
 
-    def _analyze_pending_recordings(self):
-        if not is_transcription_enabled():
-            logger.info("Transcription is disabled; skipping pending recording analyzer")
+    def _recover_stale_recordings(self):
+        if self.flask_app is None:
             return
 
-        logger.info("Checking for completed recordings that need transcription")
-
         try:
-            pending_recordings = (
-                Recording.query.filter_by(status="completed")
-                .outerjoin(Summary)
-                .filter(Summary.id == None)
-                .all()
-            )
-
-            logger.info(
-                "Found %s recordings waiting for transcription",
-                len(pending_recordings),
-            )
-
-            for recording in pending_recordings:
-                try:
-                    success = content_analyzer.analyze_recording(recording.id)
-                    if success:
-                        logger.info(
-                            "Transcribed recording %s successfully",
-                            recording.id,
-                        )
-                        video_recorder.cleanup_recording(recording.id)
-                    else:
-                        logger.error(
-                            "Failed to transcribe recording %s",
-                            recording.id,
-                        )
-                except Exception as exc:
-                    logger.error(
-                        "Error transcribing recording %s: %s",
-                        recording.id,
-                        exc,
-                    )
-
-                time.sleep(5)
+            with self.flask_app.app_context():
+                recovered = video_recorder.recover_stale_recordings()
+                if recovered:
+                    logger.info("Recovered %s stale recordings during scheduler startup", recovered)
         except Exception as exc:
-            logger.error("Error checking pending recordings: %s", exc)
+            logger.error("Error recovering stale recordings on startup: %s", exc)
 
     def _backup_database(self):
         current_time = datetime.now()

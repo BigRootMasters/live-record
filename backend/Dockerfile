@@ -43,7 +43,7 @@ RUN set -eux; \
 COPY . .
 
 # 创建数据目录
-RUN mkdir -p data/videos data/summaries
+RUN mkdir -p data/recordings logs run
 
 # 暴露端口
 EXPOSE 5000

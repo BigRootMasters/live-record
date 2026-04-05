@@ -15,6 +15,8 @@ class LiveDiscoveryService:
         unique_id = self._get_unique_id(anchor, config)
         candidate_urls = self._build_candidate_urls(anchor, config, unique_id=unique_id)
         attempts = []
+        offline_resolved = None
+        offline_candidate_url = None
 
         result = {
             'anchor': {
@@ -58,6 +60,15 @@ class LiveDiscoveryService:
                 result['resolved'] = resolved
                 result['resolved_candidate_url'] = candidate_url
                 return result
+
+            if resolved and resolved.get('status') == 'offline' and offline_resolved is None:
+                offline_resolved = resolved
+                offline_candidate_url = candidate_url
+
+        if offline_resolved:
+            result['resolved'] = offline_resolved
+            result['resolved_candidate_url'] = offline_candidate_url
+            return result
 
         if attempts:
             last_attempt = attempts[-1]

@@ -3,13 +3,17 @@
 一个面向单机部署的抖音直播自动录制工具，当前默认工作模式是：
 
 - 自动巡检指定主播是否开播
-- 开播后自动录制音视频
+- 开播后自动录制音视频，或按配置只录音频
 - 下播后优雅收尾并保存录播文件
 - 自动抽取音频并发送到企业微信机器人
 
 当前项目已经默认收口为“纯录制模式”，不再依赖前端页面，也不会自动做文字识别或摘要生成。
 
 部署思路参考了 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 的源码运行方式：优先使用宿主机安装 `ffmpeg`，再配合 Python 虚拟环境直接运行。对中国大陆服务器来说，这通常比 Docker 构建更稳、更快。
+
+如果你准备直接在阿里云服务器实操，优先看这份分步教程：
+
+- [ALIYUN_DEPLOYMENT.md](./ALIYUN_DEPLOYMENT.md)
 
 ## 当前架构
 
@@ -77,6 +81,31 @@ pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 如果你的系统命令是 `python3` 而不是 `python3.9`，把上面的解释器名替换掉即可。
 
+阿里云国内服务器想进一步提速，建议再做这几步：
+
+```bash
+pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+pip config set global.trusted-host mirrors.aliyun.com
+pip config set global.timeout 120
+```
+
+Ubuntu / Debian 机器如果系统源本身也慢，先切到阿里云镜像再装系统包：
+
+```bash
+sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak.$(date +%F-%H%M%S)
+sudo sed -i 's@http://archive.ubuntu.com/ubuntu@https://mirrors.aliyun.com/ubuntu@g' /etc/apt/sources.list
+sudo sed -i 's@http://security.ubuntu.com/ubuntu@https://mirrors.aliyun.com/ubuntu@g' /etc/apt/sources.list
+sudo apt-get clean
+sudo apt-get update
+```
+
+这个项目在阿里云上最稳的做法依然是：
+
+- 不走 Docker 首次构建
+- 宿主机直接安装 `ffmpeg`
+- `pip` 固定使用国内镜像
+- `.venv` 保留在磁盘上，后续更新只重新执行一次 `pip install -r requirements.txt`
+
 ### 4. 配置运行环境
 
 ```bash
@@ -91,19 +120,19 @@ FLASK_ENV=production
 SECRET_KEY=replace-with-a-random-secret
 
 DATABASE_URL=sqlite:///./data.db
-VIDEO_STORAGE_PATH=./data/temp_videos
-SUMMARY_STORAGE_PATH=./data/summaries
+VIDEO_STORAGE_PATH=./data/recordings
 FFMPEG_BIN=/usr/bin/ffmpeg
 FFPROBE_BIN=/usr/bin/ffprobe
+RECORDING_MODE=video
+AUDIO_RECORDING_BITRATE=64k
+AUDIO_RECORDING_SAMPLE_RATE=16000
+AUDIO_RECORDING_CHANNELS=1
 
 USE_REAL_API=True
 ANCHOR_CONFIG_PATH=./config/anchors.json
 
 WECHAT_WEBHOOK_URL=你的企业微信机器人 webhook
 AUTO_SEND_AUDIO_ON_RECORDING_COMPLETE=True
-
-ENABLE_TRANSCRIPTION=False
-AUTO_NOTIFY_ON_TRANSCRIBE=False
 
 CHECK_INTERVAL=120
 MAX_RECORDING_DURATION=9000
@@ -130,6 +159,12 @@ LOG_LEVEL=INFO
     "notes": "仅提供主页信息，用于验证主页推导直播入口"
   }
 ]
+```
+
+录制文件会按下面的目录结构落盘：
+
+```text
+data/recordings/<anchor_id>_<anchor_name>/<YYYY-MM-DD>/<audio|video>/<YYYYMMDD_HHMMSS>.<ext>
 ```
 
 ### 6. 手工启动
@@ -173,7 +208,7 @@ curl http://127.0.0.1:5000/api/system/status
 ```text
 Starting task scheduler service
 Starting live monitor task
-Transcription is disabled; analyzer and summary notification tasks will not start
+Task scheduler is running in record-only mode
 ```
 
 如果主播正在直播，后面应该出现：
@@ -279,6 +314,16 @@ FFPROBE_BIN=/usr/bin/ffprobe
 - `scheduler`
 - `anchors.json`
 - 企业微信 webhook
+
+### 5. 如何彻底清理旧转写数据
+
+如果你是从旧版本升级上来的，想把历史 `summaries` 表和旧摘要目录一起删掉，可以执行：
+
+```bash
+cd /opt/live-record/backend
+source .venv/bin/activate
+python scripts/cleanup_legacy_transcription_data.py
+```
 
 ## 更多部署细节
 

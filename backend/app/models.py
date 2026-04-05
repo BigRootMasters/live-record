@@ -1,8 +1,3 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Index
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.sql import func
-from sqlalchemy.orm import relationship, deferred
-
 from flask_sqlalchemy import SQLAlchemy
 
 # 创建数据库实例
@@ -40,22 +35,3 @@ class Recording(db.Model):
     
     # 关系
     anchor = db.relationship('Anchor', back_populates='recordings', lazy='joined')
-    summary = db.relationship('Summary', back_populates='recording', uselist=False, lazy='joined')
-
-class Summary(db.Model):
-    """内容摘要模型"""
-    __tablename__ = 'summaries'
-    
-    id = db.Column(db.Integer, primary_key=True, index=True)
-    recording_id = db.Column(db.Integer, db.ForeignKey('recordings.id'), nullable=False, index=True)
-    content = deferred(db.Column(db.Text, nullable=False))  # 延迟加载大文本
-    core_points = deferred(db.Column(db.Text, nullable=True))  # 延迟加载大文本
-    market_analysis = deferred(db.Column(db.Text, nullable=True))  # 延迟加载大文本
-    investment_advice = deferred(db.Column(db.Text, nullable=True))  # 延迟加载大文本
-    keywords = db.Column(db.String(255), nullable=True, index=True)
-    status = db.Column(db.String(20), default='pending', index=True)  # 状态：pending, processing, completed, failed
-    created_at = db.Column(db.DateTime(timezone=True), server_default=db.func.now(), index=True)
-    updated_at = db.Column(db.DateTime(timezone=True), onupdate=db.func.now())
-    
-    # 关系
-    recording = db.relationship('Recording', back_populates='summary', lazy='joined')
