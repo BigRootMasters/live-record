@@ -20,6 +20,14 @@ class LiveMonitor:
     
     def __init__(self):
         self.check_interval = int(os.getenv('CHECK_INTERVAL', 120))  # 默认2分钟检查一次
+        self.active_recording_check_interval = max(
+            5,
+            int(os.getenv('ACTIVE_RECORDING_CHECK_INTERVAL', '30'))
+        )
+        self.active_recording_cooldown_seconds = max(
+            self.active_recording_check_interval,
+            int(os.getenv('ACTIVE_RECORDING_COOLDOWN_SECONDS', '300'))
+        )
         self.user_agent = os.getenv('DOUYIN_USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36')
         self.use_real_api = os.getenv('USE_REAL_API', 'False').lower() == 'true'
         self.api_timeout = int(os.getenv('API_TIMEOUT', 10))
@@ -28,6 +36,7 @@ class LiveMonitor:
         self.keep_recording_on_discovery_error = os.getenv('KEEP_RECORDING_ON_DISCOVERY_ERROR', 'True').lower() == 'true'
         self.is_running = False
         self.offline_check_counts = {}
+        self.recent_recording_activity = {}
         self.headers = {
             'User-Agent': self.user_agent,
             'Accept': 'application/json',
@@ -42,11 +51,12 @@ class LiveMonitor:
         while self.is_running:
             try:
                 self.check_all_anchors()
-                logger.info(f'Checked all anchors, sleeping for {self.check_interval} seconds')
-                time.sleep(self.check_interval)
+                sleep_seconds = self._get_sleep_interval()
+                logger.info(f'Checked all anchors, sleeping for {sleep_seconds} seconds')
+                time.sleep(sleep_seconds)
             except Exception as e:
                 logger.error(f'Error in live monitor: {e}')
-                time.sleep(self.check_interval)
+                time.sleep(self._get_sleep_interval())
     
     def stop_monitoring(self):
         """停止监测"""
@@ -81,6 +91,7 @@ class LiveMonitor:
             
             if is_live:
                 self._reset_offline_counter(anchor.id)
+                self._mark_recent_recording_activity(anchor.id)
                 logger.info(f'Anchor {anchor.name} is live!')
                 # 检查是否已经有正在进行的录制
                 existing_recording = Recording.query.filter_by(
@@ -131,6 +142,7 @@ class LiveMonitor:
     def start_recording(self, anchor, live_info=None):
         """开始录制直播"""
         logger.info(f'Starting recording for anchor {anchor.name}')
+        self._mark_recent_recording_activity(anchor.id)
         
         video_storage_path = os.getenv('VIDEO_STORAGE_PATH', './data/recordings')
         start_time = datetime.now()
@@ -192,6 +204,7 @@ class LiveMonitor:
     def stop_recording(self, recording):
         """停止录制直播"""
         logger.info(f'Stopping recording for recording ID: {recording.id}')
+        self._mark_recent_recording_activity(recording.anchor_id)
 
         stopped = video_recorder.stop_recording(recording.id)
         if not stopped:
@@ -262,6 +275,20 @@ class LiveMonitor:
     def _reset_offline_counter(self, anchor_id):
         self.offline_check_counts.pop(anchor_id, None)
 
+    def _mark_recent_recording_activity(self, anchor_id):
+        self.recent_recording_activity[anchor_id] = time.time() + self.active_recording_cooldown_seconds
+
+    def _has_recent_recording_activity(self):
+        now = time.time()
+        expired_anchor_ids = [
+            anchor_id
+            for anchor_id, expires_at in self.recent_recording_activity.items()
+            if expires_at <= now
+        ]
+        for anchor_id in expired_anchor_ids:
+            self.recent_recording_activity.pop(anchor_id, None)
+        return bool(self.recent_recording_activity)
+
     def _should_keep_recording_on_error(self, anchor, live_info):
         error_message = (live_info or {}).get('error')
         if not error_message or not self.keep_recording_on_discovery_error:
@@ -292,6 +319,12 @@ class LiveMonitor:
 
         self._reset_offline_counter(anchor.id)
         return False
+
+    def _get_sleep_interval(self):
+        has_active_recording = Recording.query.filter_by(status='recording').count() > 0
+        if has_active_recording or self._has_recent_recording_activity():
+            return self.active_recording_check_interval
+        return self.check_interval
 
 # 创建监测服务实例
 live_monitor = LiveMonitor()

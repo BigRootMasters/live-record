@@ -24,9 +24,19 @@ class VideoRecorder:
         self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 9000))  # 最大录制时长
         self.cleanup_video = os.getenv('CLEANUP_VIDEO', 'True').lower() == 'true'  # 是否清理视频文件
         self.recording_retention_days = int(os.getenv('RECORDING_RETENTION_DAYS', 7))
+        self.auto_delete_failed_recordings = os.getenv('AUTO_DELETE_FAILED_RECORDINGS', 'False').lower() == 'true'
         self.audio_recording_bitrate = os.getenv('AUDIO_RECORDING_BITRATE', '64k')
         self.audio_recording_sample_rate = int(os.getenv('AUDIO_RECORDING_SAMPLE_RATE', '16000'))
         self.audio_recording_channels = int(os.getenv('AUDIO_RECORDING_CHANNELS', '1'))
+        self.min_valid_recording_duration = max(
+            0,
+            int(os.getenv('MIN_VALID_RECORDING_DURATION_SECONDS', '15')),
+        )
+        self.ffmpeg_reconnect_enabled = os.getenv('FFMPEG_RECONNECT_ENABLED', 'True').lower() == 'true'
+        self.ffmpeg_reconnect_delay_max = max(
+            1,
+            int(os.getenv('FFMPEG_RECONNECT_DELAY_MAX_SECONDS', '10')),
+        )
         self.user_agent = os.getenv(
             'DOUYIN_USER_AGENT',
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -52,6 +62,14 @@ class VideoRecorder:
             '-user_agent', self.user_agent,
             '-rw_timeout', '15000000',
         ]
+
+        if self.ffmpeg_reconnect_enabled and stream_url.startswith(('http://', 'https://')):
+            cmd.extend([
+                '-reconnect', '1',
+                '-reconnect_streamed', '1',
+                '-reconnect_at_eof', '1',
+                '-reconnect_delay_max', str(self.ffmpeg_reconnect_delay_max),
+            ])
 
         if '.m3u8' in stream_url:
             # Douyin HLS often requires a browser-like referer/origin.
@@ -148,6 +166,13 @@ class VideoRecorder:
             return (process.stderr.read() or '').strip()
         except Exception:
             return ''
+
+    def _is_valid_recording_duration(self, duration):
+        if duration is None:
+            return False
+        if duration <= 0:
+            return False
+        return duration >= self.min_valid_recording_duration
 
     def stop_recording(self, recording_id):
         """停止录制视频"""
@@ -311,7 +336,20 @@ class VideoRecorder:
             duration = self.get_video_duration(recording.video_path)
             recording.video_duration = duration
             logger.info(f'Updated recording duration for recording {recording_id}: {duration} seconds')
-            
+
+            if not self._is_valid_recording_duration(duration):
+                recording.status = 'failed'
+                recording.end_time = datetime.now()
+                db.session.commit()
+                self._cleanup_failed_recording_file(recording)
+                logger.warning(
+                    'Recording %s is too short (%ss < %ss), marking as failed',
+                    recording_id,
+                    duration,
+                    self.min_valid_recording_duration,
+                )
+                return False
+
             # 更新录制状态
             recording.status = 'completed'
             recording.end_time = datetime.now()
@@ -323,6 +361,23 @@ class VideoRecorder:
             logger.error(f'Error processing recording: {e}')
             db.session.rollback()
             return False
+
+    def _cleanup_failed_recording_file(self, recording):
+        if not self.auto_delete_failed_recordings:
+            return
+
+        if not recording or not recording.video_path or not os.path.exists(recording.video_path):
+            return
+
+        try:
+            os.remove(recording.video_path)
+            logger.info('Deleted failed recording file for recording %s', recording.id)
+        except Exception as exc:
+            logger.warning(
+                'Failed to delete failed recording file for recording %s: %s',
+                recording.id,
+                exc,
+            )
 
     def recover_stale_recording(self, recording_id):
         """回收重启后遗留的录制状态，避免卡在 recording。"""
@@ -349,7 +404,7 @@ class VideoRecorder:
             if recording.video_path and os.path.exists(recording.video_path):
                 duration = self.get_video_duration(recording.video_path)
                 recording.video_duration = duration
-                recording.status = 'completed' if duration > 0 else 'failed'
+                recording.status = 'completed' if self._is_valid_recording_duration(duration) else 'failed'
                 recording.end_time = datetime.fromtimestamp(os.path.getmtime(recording.video_path))
                 logger.info(
                     'Recovered stale recording %s as status=%s duration=%s',
@@ -489,7 +544,7 @@ class VideoRecorder:
             cutoff_date = datetime.now() - timedelta(days=days)
             old_recordings = Recording.query.filter(
                 Recording.end_time < cutoff_date,
-                Recording.status == 'completed'
+                Recording.status.in_(['completed', 'failed'])
             ).all()
             
             cleaned_count = 0
