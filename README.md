@@ -115,7 +115,7 @@ sudo apt-get update
 ```env
 FLASK_APP=app.py
 FLASK_ENV=production
-SECRET_KEY=replace-with-a-random-secret
+SECRET_KEY=your_secret_key_here
 
 DATABASE_URL=sqlite:///./data.db
 VIDEO_STORAGE_PATH=./data/recordings
@@ -133,7 +133,7 @@ FFMPEG_RECONNECT_DELAY_MAX_SECONDS=10
 USE_REAL_API=True
 ANCHOR_CONFIG_PATH=./config/anchors.json
 
-WECHAT_WEBHOOK_URL=你的企业微信机器人 webhook
+WECHAT_WEBHOOK_URL=你的企业微信机器人webhook
 AUTO_SEND_AUDIO_ON_RECORDING_COMPLETE=True
 
 CHECK_INTERVAL=120

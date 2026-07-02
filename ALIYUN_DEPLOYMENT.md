@@ -105,7 +105,7 @@ pip install -r requirements.txt
 ```env
 FLASK_APP=app.py
 FLASK_ENV=production
-SECRET_KEY=replace-with-a-random-secret
+SECRET_KEY=your_secret_key_here
 
 DATABASE_URL=sqlite:///./data.db
 VIDEO_STORAGE_PATH=./data/recordings
