@@ -118,10 +118,7 @@ apt-get update
 
 ## 6. 配置 .env
 
-```bash
-cd /opt/live-record/backend
-cp .env.example .env
-```
+直接编辑仓库里的 `backend/.env` 即可。
 
 建议至少确认这些配置：
 
@@ -163,6 +160,11 @@ RECORDING_RETENTION_DAYS=7
 CLEANUP_VIDEO=False
 LOG_LEVEL=INFO
 ```
+
+注意：现在 `.env` 已经纳入 Git 管理。
+
+- 如果你在服务器上直接改了 `backend/.env`，后续 `git pull` 可能会因为本地改动冲突而失败
+- 更稳的做法是统一在仓库里维护 `.env` 后再部署，或者在拉取前先备份当前服务器上的 `.env`
 
 ## 7. 创建运行目录
 

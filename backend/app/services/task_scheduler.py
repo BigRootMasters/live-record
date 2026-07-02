@@ -1,5 +1,6 @@
 import logging
 import os
+import sqlite3
 import time
 from datetime import datetime
 from threading import Thread
@@ -110,29 +111,47 @@ class TaskScheduler:
             return
 
         logger.info("Running database backup")
+        source_conn = None
+        backup_conn = None
         try:
+            database_url = os.getenv("DATABASE_URL", "sqlite:///./data.db")
+            if not database_url.startswith("sqlite:///"):
+                logger.info("Skipping database backup because DATABASE_URL is not SQLite")
+                self.last_backup_time = current_time
+                return
+
             backup_dir = os.path.join(os.getcwd(), "backups")
             os.makedirs(backup_dir, exist_ok=True)
 
             backup_filename = f"db_backup_{current_time.strftime('%Y%m%d_%H%M%S')}.db"
             backup_path = os.path.join(backup_dir, backup_filename)
-            db_path = self._resolve_sqlite_db_path()
+            db_path = self._resolve_sqlite_db_path(database_url)
 
             if not os.path.exists(db_path):
                 logger.warning("Database file not found: %s", db_path)
                 return
 
-            import shutil
-
-            shutil.copy2(db_path, backup_path)
+            source_conn = sqlite3.connect(
+                f"file:{db_path}?mode=ro",
+                uri=True,
+                timeout=30,
+            )
+            backup_conn = sqlite3.connect(backup_path, timeout=30)
+            with backup_conn:
+                source_conn.backup(backup_conn)
             logger.info("Database backed up to: %s", backup_path)
             self._cleanup_old_backups(backup_dir, 7)
             self.last_backup_time = current_time
         except Exception as exc:
             logger.error("Error backing up database: %s", exc)
+        finally:
+            if source_conn is not None:
+                source_conn.close()
+            if backup_conn is not None:
+                backup_conn.close()
 
-    def _resolve_sqlite_db_path(self):
-        database_url = os.getenv("DATABASE_URL", "sqlite:///./data.db")
+    def _resolve_sqlite_db_path(self, database_url=None):
+        database_url = database_url or os.getenv("DATABASE_URL", "sqlite:///./data.db")
         if not database_url.startswith("sqlite:///"):
             return os.path.join(os.getcwd(), "instance", "data.db")
 
@@ -164,7 +183,9 @@ class TaskScheduler:
     def _cleanup_old_recordings(self):
         logger.info("Cleaning up old recordings")
         try:
-            video_recorder.cleanup_old_recordings(days=7)
+            video_recorder.cleanup_old_recordings(
+                days=video_recorder.recording_retention_days
+            )
         except Exception as exc:
             logger.error("Error cleaning up old recordings: %s", exc)
 

@@ -108,9 +108,7 @@ sudo apt-get update
 
 ### 4. 配置运行环境
 
-```bash
-cp .env.example .env
-```
+直接编辑仓库里的 `backend/.env` 即可。
 
 最小可用配置示例：
 
@@ -146,6 +144,11 @@ RECORDING_RETENTION_DAYS=7
 CLEANUP_VIDEO=False
 LOG_LEVEL=INFO
 ```
+
+注意：现在 `.env` 已经纳入 Git 管理。
+
+- 如果你在服务器上直接改了 `backend/.env`，后续 `git pull` 可能会因为本地改动冲突而中断
+- 更稳的做法是统一在仓库里维护 `.env` 后再部署，或者在拉取前先备份当前服务器上的 `.env`
 
 ### 5. 配置主播
 
@@ -319,16 +322,7 @@ FFPROBE_BIN=/usr/bin/ffprobe
 
 当前停止逻辑不是直接强杀 `ffmpeg`，而是先发送 `q`，让 `ffmpeg` 优雅写完封装信息后退出，所以正常情况下能完整收尾 MP4 文件。
 
-### 4. 是否必须部署前端
-
-不是。当前主链路只需要：
-
-- `backend`
-- `scheduler`
-- `anchors.json`
-- 企业微信 webhook
-
-### 5. 如何彻底清理旧转写数据
+### 4. 如何彻底清理旧转写数据
 
 如果你是从旧版本升级上来的，想把历史 `summaries` 表和旧摘要目录一起删掉，可以执行：
 

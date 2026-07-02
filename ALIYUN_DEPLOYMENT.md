@@ -98,10 +98,7 @@ pip install -r requirements.txt
 
 ## 6. 配置运行环境
 
-```bash
-cd /opt/live-record/backend
-cp .env.example .env
-```
+直接编辑仓库里的 `backend/.env` 即可。
 
 推荐从这个最小配置开始：
 
@@ -144,6 +141,11 @@ RECORDING_RETENTION_DAYS=7
 LOG_LEVEL=INFO
 LOG_FILE=./logs/app.log
 ```
+
+注意：现在 `.env` 已经纳入 Git 管理。
+
+- 如果你在服务器上改过 `backend/.env`，后续 `git pull` 可能会被本地改动拦住
+- 更稳的做法是统一在仓库里维护 `.env`，服务器只做拉取和重启
 
 ## 7. 配置主播
 

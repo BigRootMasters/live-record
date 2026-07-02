@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
 from sqlalchemy import desc
@@ -7,12 +8,74 @@ from sqlalchemy.orm import joinedload
 
 from app.models import Anchor, Recording, db
 from app.services.anchor_config_service import anchor_config_service
+from app.services.anchor_sync_service import anchor_sync_service
 from app.services.douyin_live_resolver import douyin_live_resolver
 from app.services.live_discovery_service import live_discovery_service
 from app.services.live_monitor import live_monitor
 from app.services.notification_service import notification_service
 
 bp = Blueprint('api', __name__, url_prefix='/api')
+ALLOWED_LIVE_RESOLVE_HOSTS = (
+    'douyin.com',
+    '.douyin.com',
+    'iesdouyin.com',
+    '.iesdouyin.com',
+)
+
+
+def _get_api_auth_token():
+    return (os.getenv('API_AUTH_TOKEN') or '').strip()
+
+
+def _get_request_api_token():
+    bearer_token = (request.headers.get('Authorization') or '').strip()
+    if bearer_token.lower().startswith('bearer '):
+        return bearer_token[7:].strip()
+    return (request.headers.get('X-API-Token') or '').strip()
+
+
+def _config_managed_anchor_response():
+    return jsonify({
+        'error': 'Anchors are managed by config file only',
+        'message': 'Edit backend/config/anchors.json and call POST /api/anchors/reload to apply changes.',
+        'config_path': anchor_config_service.config_path,
+    }), 409
+
+
+def _is_allowed_live_url(live_url):
+    try:
+        parsed = urlparse((live_url or '').strip())
+    except Exception:
+        return False
+
+    if parsed.scheme not in {'http', 'https'}:
+        return False
+
+    hostname = (parsed.hostname or '').lower()
+    if not hostname:
+        return False
+
+    return any(
+        hostname == allowed.lstrip('.') or hostname.endswith(allowed)
+        for allowed in ALLOWED_LIVE_RESOLVE_HOSTS
+    )
+
+
+def _get_allowed_live_resolve_hosts():
+    return sorted({host.lstrip('.') for host in ALLOWED_LIVE_RESOLVE_HOSTS})
+
+
+@bp.before_request
+def require_api_auth():
+    configured_token = _get_api_auth_token()
+    if not configured_token or request.method == 'OPTIONS':
+        return None
+
+    request_token = _get_request_api_token()
+    if request_token == configured_token:
+        return None
+
+    return jsonify({'error': 'Unauthorized'}), 401
 
 
 def serialize_anchor(anchor):
@@ -60,63 +123,31 @@ def get_anchors():
 
 @bp.route('/anchors', methods=['POST'])
 def add_anchor():
-    """添加新主播"""
-    data = request.json
-    if not data or not data.get('name') or not data.get('douyin_id'):
-        return jsonify({'error': 'Missing required fields'}), 400
-
-    existing_anchor = Anchor.query.filter_by(douyin_id=data['douyin_id']).first()
-    if existing_anchor:
-        return jsonify({'error': 'Anchor already exists'}), 400
-
-    new_anchor = Anchor(
-        name=data['name'],
-        douyin_id=data['douyin_id'],
-        room_id=data.get('room_id'),
-        avatar_url=data.get('avatar_url'),
-        is_followed=data.get('is_followed', True),
-    )
-
-    db.session.add(new_anchor)
-    db.session.commit()
-
-    return jsonify(serialize_anchor(new_anchor)), 201
+    """主播由配置文件统一管理。"""
+    return _config_managed_anchor_response()
 
 
 @bp.route('/anchors/<int:anchor_id>', methods=['PUT'])
 def update_anchor(anchor_id):
-    """更新主播信息"""
-    data = request.json
-
-    anchor = Anchor.query.filter_by(id=anchor_id).first()
-    if not anchor:
-        return jsonify({'error': 'Anchor not found'}), 404
-
-    if 'name' in data:
-        anchor.name = data['name']
-    if 'room_id' in data:
-        anchor.room_id = data['room_id']
-    if 'avatar_url' in data:
-        anchor.avatar_url = data['avatar_url']
-    if 'is_followed' in data:
-        anchor.is_followed = data['is_followed']
-
-    db.session.commit()
-
-    return jsonify(serialize_anchor(anchor)), 200
+    """主播由配置文件统一管理。"""
+    return _config_managed_anchor_response()
 
 
 @bp.route('/anchors/<int:anchor_id>', methods=['DELETE'])
 def delete_anchor(anchor_id):
-    """删除主播"""
-    anchor = Anchor.query.filter_by(id=anchor_id).first()
-    if not anchor:
-        return jsonify({'error': 'Anchor not found'}), 404
+    """主播由配置文件统一管理。"""
+    return _config_managed_anchor_response()
 
-    db.session.delete(anchor)
-    db.session.commit()
 
-    return jsonify({'message': 'Anchor deleted successfully'}), 200
+@bp.route('/anchors/reload', methods=['POST'])
+def reload_anchors():
+    """重新同步 anchors.json 到运行时数据库。"""
+    result = anchor_sync_service.sync()
+    return jsonify({
+        'success': True,
+        'message': 'Anchor config reloaded successfully',
+        **result,
+    }), 200
 
 
 @bp.route('/anchors/<int:anchor_id>/discover-live', methods=['GET'])
@@ -345,6 +376,11 @@ def resolve_live_url():
     live_url = data.get('live_url')
     if not live_url:
         return jsonify({'error': 'live_url is required'}), 400
+    if not _is_allowed_live_url(live_url):
+        return jsonify({
+            'error': 'live_url must be a Douyin live or profile URL',
+            'allowed_hosts': _get_allowed_live_resolve_hosts(),
+        }), 400
 
     result = douyin_live_resolver.resolve(live_url)
     if not result:
@@ -377,6 +413,7 @@ def get_system_status():
             'transcription_enabled': False,
             'recording_mode': os.getenv('RECORDING_MODE', 'video'),
             'audio_notification_enabled': notification_service.auto_send_recording_audio,
+            'api_auth_enabled': bool(_get_api_auth_token()),
         },
         'storage': {
             'video_size': video_size,

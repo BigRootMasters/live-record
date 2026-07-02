@@ -86,7 +86,18 @@ def create_app():
     )
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-    CORS(flask_app)
+    cors_origins_raw = (os.getenv("CORS_ORIGINS") or "").strip()
+    if cors_origins_raw:
+        cors_origins = [
+            origin.strip()
+            for origin in cors_origins_raw.split(",")
+            if origin.strip()
+        ]
+        if cors_origins:
+            CORS(
+                flask_app,
+                resources={r"/api/*": {"origins": cors_origins}},
+            )
     _configure_logging(flask_app)
 
     from app.models import db

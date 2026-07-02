@@ -421,6 +421,8 @@ class VideoRecorder:
                 )
 
             db.session.commit()
+            if recording.status == 'failed':
+                self._cleanup_failed_recording_file(recording)
             return True
         except Exception as e:
             logger.error(f'Error recovering stale recording: {e}')
