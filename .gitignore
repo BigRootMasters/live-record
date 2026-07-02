@@ -11,3 +11,15 @@ backend/data/
 backend/logs/
 backend/run/
 tools/
+# Python 虚拟环境
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+# 日志、缓存
+*.log
+*.tmp
+.DS_Store
