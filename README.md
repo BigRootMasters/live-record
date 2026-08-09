@@ -43,8 +43,36 @@
 - Python `3.9+`
 - `ffmpeg` 和 `ffprobe`
 - Git
+- `systemd`（生产环境守护进程）
+- 能访问 GitHub、Python 镜像源、抖音页面和企业微信 webhook
 
 如果你使用阿里云中国内地服务器，可按下文配置国内软件源。
+
+## Alibaba Cloud Linux 3 一键部署
+
+项目根目录的 [`deploy.sh`](./deploy.sh) 可以完成首次部署和后续更新：
+
+```bash
+cd /opt/live-record
+chmod +x deploy.sh
+./deploy.sh
+```
+
+脚本会自动：
+
+1. 使用 `git pull --ff-only` 更新 `origin/main`
+2. 安装 Python 3.11、pip、FFmpeg 和 ffprobe
+3. 创建 `backend/.venv` 并安装 Python 依赖
+4. 校验 `.env`、`anchors.json` 和媒体工具
+5. 运行自动化测试
+6. 按当前仓库路径安装 systemd 服务
+7. 优雅重启调度器，验证 API 健康状态
+
+后续每次发布仍执行同一条 `./deploy.sh` 即可。详细要求、参数和排障方法见
+[`ALIYUN_DEPLOYMENT.md`](./ALIYUN_DEPLOYMENT.md)。
+
+注意：发布会优雅结束当前录制片段并重启调度器。如果不希望直播期间分段，请等当前没有
+`recording` 状态的任务时再部署。
 
 ## 快速开始
 
@@ -57,11 +85,14 @@ cd live-record/backend
 
 ### 2. 安装系统依赖
 
-Alibaba Cloud Linux / Rocky / CentOS Stream:
+Alibaba Cloud Linux 3:
 
 ```bash
-dnf install -y python39 python39-devel git ffmpeg
+dnf install -y python3.11 python3.11-pip git curl
 ```
+
+Alibaba Cloud Linux 3 的 FFmpeg 可能需要 RPM Fusion EL8 源，推荐直接使用上面的
+`deploy.sh` 自动处理。
 
 Ubuntu / Debian:
 
@@ -73,13 +104,14 @@ apt-get install -y python3 python3-venv python3-pip git ffmpeg
 ### 3. 创建虚拟环境
 
 ```bash
-python3.9 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -U pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/
-pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+python -m pip install -U pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/
+python -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
-如果你的系统命令是 `python3` 而不是 `python3.9`，把上面的解释器名替换掉即可。
+其他 Linux 发行版可使用任意 Python `3.9+`，但不要替换 Alibaba Cloud Linux 3
+系统自带的 Python 3.6；请始终显式使用 `python3.11` 创建虚拟环境。
 
 阿里云国内服务器想进一步提速，建议再做这几步：
 
@@ -288,6 +320,15 @@ python -m unittest discover -s tests -v
 
 ## 更新流程
 
+Alibaba Cloud Linux 3 推荐：
+
+```bash
+cd /opt/live-record
+./deploy.sh
+```
+
+其他系统手工更新：
+
 ```bash
 cd /opt/live-record
 git fetch origin
@@ -296,10 +337,11 @@ git pull
 
 cd backend
 source .venv/bin/activate
-pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+python -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
+systemctl stop live-record-scheduler
 systemctl restart live-record-backend
-systemctl restart live-record-scheduler
+systemctl start live-record-scheduler
 ```
 
 ## 常见问题

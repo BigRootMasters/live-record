@@ -15,7 +15,7 @@ mkdir -p "$LOG_DIR" "$RUN_DIR"
 if [ ! -f "$VENV_DIR/bin/activate" ]; then
   echo "Virtualenv not found: $VENV_DIR"
   echo "Create it first, for example:"
-  echo "  python3.9 -m venv $VENV_DIR"
+  echo "  python3.11 -m venv $VENV_DIR"
   exit 1
 fi
 

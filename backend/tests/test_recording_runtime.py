@@ -8,6 +8,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
 TEST_ROOT = tempfile.TemporaryDirectory(prefix='live_record_tests_')
 TEST_PATH = Path(TEST_ROOT.name)
 ANCHOR_CONFIG_PATH = TEST_PATH / 'anchors.json'

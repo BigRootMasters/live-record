@@ -17,17 +17,20 @@
 - Python `3.9+`
 - `ffmpeg` / `ffprobe`
 - Git
+- `systemd`
 - 可访问抖音直播页面
 
 ## 2. 安装系统依赖
 
-### Alibaba Cloud Linux / Rocky / CentOS Stream
+### Alibaba Cloud Linux 3
 
 ```bash
-dnf install -y python39 python39-devel git ffmpeg
-python3.9 --version
-ffmpeg -version | head -n 1
+dnf install -y python3.11 python3.11-pip git curl
+python3.11 --version
 ```
+
+Alibaba Cloud Linux 3 默认源可能没有 FFmpeg，完整安装过程见
+[`ALIYUN_DEPLOYMENT.md`](./ALIYUN_DEPLOYMENT.md)，或者直接使用项目根目录的 `deploy.sh`。
 
 ### Ubuntu / Debian
 
@@ -56,6 +59,20 @@ git checkout main
 git pull
 ```
 
+## 自动部署（Alibaba Cloud Linux 3）
+
+首次克隆后或后续更新时，均可执行：
+
+```bash
+cd /opt/live-record
+chmod +x deploy.sh
+./deploy.sh
+```
+
+自动脚本只支持 Alibaba Cloud Linux 3 的系统包安装，但会根据实际仓库路径生成
+systemd 服务，因此仓库不强制位于 `/opt/live-record`。服务器上如果存在未提交的
+跟踪文件修改，脚本会拒绝自动 `git pull`，避免覆盖服务器配置。
+
 ## 4. 配置主播
 
 编辑 [`backend/config/anchors.json`](./backend/config/anchors.json)。
@@ -82,13 +99,14 @@ git pull
 
 ```bash
 cd /opt/live-record/backend
-python3.9 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -U pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/
-pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+python -m pip install -U pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/
+python -m pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 ```
 
-如果你的服务器只有 `python3`，把 `python3.9` 换成 `python3` 即可。
+上面是 Alibaba Cloud Linux 3 命令。其他系统可使用实际安装的 Python `3.9+`
+命令。
 
 如果你是在阿里云国内节点，建议把 `pip` 也固定成国内镜像，避免每次装依赖都重新走海外链路：
 
@@ -112,7 +130,7 @@ apt-get update
 
 - 先宿主机直接安装 `ffmpeg`
 - 再创建 `.venv` 并安装 Python 依赖
-- 后续更新只做 `git pull` 和 `pip install -r requirements.txt`
+- 后续更新使用 `./deploy.sh`，或手工执行 `git pull` 和 `python -m pip install -r requirements.txt`
 
 ## 6. 配置 .env
 
@@ -168,7 +186,7 @@ LOG_LEVEL=INFO
 
 ```bash
 cd /opt/live-record/backend
-mkdir -p data/recordings logs run
+mkdir -p data/recordings logs run backups
 ```
 
 ## 8. 手工验证启动
@@ -273,7 +291,8 @@ Recording audio delivered successfully for recording ...
 
 ### Python 版本过低
 
-如果系统自带 Python 是 `3.6` 或更低，优先安装 `python3.9+` 后再创建虚拟环境。当前项目建议直接用 `3.9+`。
+如果 Alibaba Cloud Linux 3 自带 Python 是 `3.6`，请并行安装 `python3.11`。不要修改
+`/usr/bin/python3` 或系统 Python 软链接，因为 `dnf` 和 `firewalld` 依赖系统 Python。
 
 ### ffmpeg not found
 

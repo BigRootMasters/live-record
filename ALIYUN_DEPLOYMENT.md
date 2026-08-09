@@ -19,7 +19,67 @@
 - 一个企业微信机器人 webhook
 - 一个普通用户或 `root` 登录权限
 
+自动部署脚本的确切要求：
+
+- Alibaba Cloud Linux `3.2104`
+- `x86_64` 或系统软件源支持的其他架构
+- `root` 权限（需要安装 RPM 和 systemd 服务）
+- 仓库已经 clone 到服务器
+- 仓库内的 `.env` 和 `config/anchors.json` 已配置
+- 能访问 GitHub、阿里云 PyPI 镜像、RPM 软件源、抖音和企业微信
+
 如果你只是先试跑，不一定要先配域名。先用服务器 IP 验证流程即可。
+
+## 一键自动部署（推荐）
+
+首次部署：
+
+```bash
+dnf install -y git
+cd /opt
+git clone https://github.com/BigRootMasters/live-record.git
+cd /opt/live-record
+chmod +x deploy.sh
+./deploy.sh
+```
+
+后续更新：
+
+```bash
+cd /opt/live-record
+./deploy.sh
+```
+
+脚本按以下顺序执行：
+
+1. 检查仓库是否存在未提交的跟踪文件修改
+2. `git pull --ff-only origin main`
+3. 安装 Python 3.11、`python3.11-pip`、Git 和 curl
+4. 安装 FFmpeg；默认源缺少软件包时自动启用 EPEL 和 RPM Fusion EL8
+5. 创建或复用 `backend/.venv`
+6. 使用阿里云 PyPI 镜像安装依赖
+7. 校验主播 JSON、FFmpeg 路径并运行测试
+8. 根据当前 clone 路径生成并安装 systemd 单元
+9. 先优雅停止调度器，再启动 API 和调度器
+10. 验证 `/health` 和两个 systemd 服务状态
+
+常用参数：
+
+```bash
+./deploy.sh --help
+./deploy.sh --skip-pull
+./deploy.sh --skip-system-deps
+./deploy.sh --skip-tests
+```
+
+- `--skip-pull`：仅部署当前磁盘上的代码
+- `--skip-system-deps`：已安装 Python/FFmpeg 时跳过 RPM 检查
+- `--skip-tests`：紧急情况才建议使用
+
+脚本会在 Python 依赖和测试成功后才重启服务，避免把一个依赖不完整的版本直接投入运行。
+
+如果部署时正在录制，调度器会先让 FFmpeg 优雅收尾、处理当前文件并发送音频，
+然后重启并在下一次巡检时继续录制。如果不希望产生两个录制片段，请在主播下播后再部署。
 
 ## 2. 为什么阿里云上装依赖会慢
 
@@ -36,12 +96,28 @@
 
 ## 3. 服务器初始化
 
-### Alibaba Cloud Linux / Rocky / CentOS Stream
+### Alibaba Cloud Linux 3.2104
 
 ```bash
-dnf install -y python39 python39-devel git ffmpeg
-python3.9 --version
+dnf install -y python3.11 python3.11-pip git curl
+python3.11 --version
+python3.11 -m pip --version
+```
+
+不要替换系统默认的 Python 3.6；`dnf` 等系统组件依赖它。
+
+如果 `dnf install -y ffmpeg` 提示没有软件包：
+
+```bash
+dnf install -y epel-release || \
+  dnf install -y https://mirrors.aliyun.com/epel/epel-release-latest-8.noarch.rpm
+dnf install -y \
+  https://mirrors.aliyun.com/rpmfusion/free/el/rpmfusion-free-release-8.noarch.rpm
+dnf clean metadata
+dnf makecache
+dnf install -y ffmpeg
 ffmpeg -version | head -n 1
+ffprobe -version | head -n 1
 ```
 
 ### Ubuntu / Debian
@@ -83,16 +159,16 @@ git clone https://github.com/BigRootMasters/live-record.git
 
 ```bash
 cd /opt/live-record/backend
-python3.9 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
 pip config set global.trusted-host mirrors.aliyun.com
 pip config set global.timeout 120
-pip install -U pip setuptools wheel
-pip install -r requirements.txt
+python -m pip install -U pip setuptools wheel
+python -m pip install -r requirements.txt
 ```
 
-如果服务器是 `python3` 命令，就把 `python3.9` 替换成 `python3`。
+虚拟环境激活后，`python --version` 必须显示 Python 3.11。
 
 ## 6. 配置运行环境
 
@@ -171,7 +247,7 @@ LOG_FILE=./logs/app.log
 
 ```bash
 cd /opt/live-record/backend
-mkdir -p data/recordings logs run
+mkdir -p data/recordings logs run backups
 ```
 
 ## 9. 手工启动验证
@@ -260,7 +336,14 @@ journalctl -u live-record-scheduler -f
 
 ## 11. 更新流程
 
-后续更新不需要重新折腾环境，直接：
+推荐使用自动更新：
+
+```bash
+cd /opt/live-record
+./deploy.sh
+```
+
+如果需要手工更新：
 
 ```bash
 cd /opt/live-record
@@ -270,10 +353,11 @@ git pull
 
 cd backend
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 
+systemctl stop live-record-scheduler
 systemctl restart live-record-backend
-systemctl restart live-record-scheduler
+systemctl start live-record-scheduler
 ```
 
 ## 12. 从旧版本升级时的清理
