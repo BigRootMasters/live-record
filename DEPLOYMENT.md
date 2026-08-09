@@ -1,10 +1,9 @@
 # Deployment Guide
 
-当前项目推荐使用“普通安装模式”部署，而不是 Docker。原因很简单：
+当前项目采用宿主机部署：
 
 - 只有 `backend` 和 `scheduler` 两个长期进程
 - 服务器上直接安装 `ffmpeg` 更稳
-- 中国大陆服务器首次构建 Docker 镜像往往会慢在基础镜像、`apt` 和 `pip`
 
 这套思路参考了 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 常见的源码运行方式：宿主机安装 `ffmpeg`，项目自身走 Python 虚拟环境。
 
@@ -109,9 +108,8 @@ apt-get clean
 apt-get update
 ```
 
-这类机器部署这个项目时，最省时间的经验是：
+这类机器部署这个项目时，建议：
 
-- 不要把第一次部署放在 Docker build 里完成
 - 先宿主机直接安装 `ffmpeg`
 - 再创建 `.venv` 并安装 Python 依赖
 - 后续更新只做 `git pull` 和 `pip install -r requirements.txt`
@@ -298,17 +296,6 @@ FFPROBE_BIN=/usr/local/bin/ffprobe
 ```bash
 ss -ltnp | grep :5000
 ```
-
-### 为什么这里不推荐 Docker
-
-如果只是要在一台阿里云服务器上稳定跑：
-
-- 普通安装模式更轻
-- 更省内存
-- 更容易定位问题
-- 避开首次构建镜像时的网络波动
-
-Docker 仍然保留为可选方案，但不再是首推路径。
 
 ### 如何清理旧转写遗留
 

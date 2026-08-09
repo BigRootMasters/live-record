@@ -9,7 +9,7 @@
 
 当前项目已经默认收口为“纯录制模式”，不再依赖前端页面，也不会自动做文字识别或摘要生成。
 
-部署思路参考了 [ihmily/DouyinLiveRecorder](https://github.com/ihmily/DouyinLiveRecorder) 的源码运行方式：优先使用宿主机安装 `ffmpeg`，再配合 Python 虚拟环境直接运行。对中国大陆服务器来说，这通常比 Docker 构建更稳、更快。
+项目使用宿主机部署：系统安装 `ffmpeg`，Python 依赖安装在虚拟环境中，并由 `systemd` 守护 API 和调度器进程。
 
 如果你准备直接在阿里云服务器实操，优先看这份分步教程：
 
@@ -28,7 +28,7 @@
 
 ## 推荐运行方式
 
-推荐优先使用普通安装模式，而不是 Docker：
+项目使用以下方式运行：
 
 1. 服务器系统安装 `ffmpeg`
 2. 创建 Python 虚拟环境 `.venv`
@@ -44,7 +44,7 @@
 - `ffmpeg` 和 `ffprobe`
 - Git
 
-如果你是阿里云中国内地服务器，推荐直接使用普通安装模式，避开 Docker 镜像构建时的海外源和基础镜像拉取问题。
+如果你使用阿里云中国内地服务器，可按下文配置国内软件源。
 
 ## 快速开始
 
@@ -99,9 +99,8 @@ sudo apt-get clean
 sudo apt-get update
 ```
 
-这个项目在阿里云上最稳的做法依然是：
+这个项目在阿里云上的部署要点是：
 
-- 不走 Docker 首次构建
 - 宿主机直接安装 `ffmpeg`
 - `pip` 固定使用国内镜像
 - `.venv` 保留在磁盘上，后续更新只重新执行一次 `pip install -r requirements.txt`
@@ -292,17 +291,7 @@ systemctl restart live-record-scheduler
 
 ## 常见问题
 
-### 1. 为什么不默认推荐 Docker
-
-对中国大陆服务器来说，Docker 首次构建通常会同时卡在这些步骤：
-
-- 基础镜像拉取
-- `apt-get install ffmpeg`
-- `pip install -r requirements.txt`
-
-而当前项目只需要两个长期进程，使用普通安装模式更直接。
-
-### 2. `ffmpeg not found`
+### 1. `ffmpeg not found`
 
 确认服务器上存在：
 
@@ -318,11 +307,11 @@ FFMPEG_BIN=/usr/bin/ffmpeg
 FFPROBE_BIN=/usr/bin/ffprobe
 ```
 
-### 3. 录制能否正常结束
+### 2. 录制能否正常结束
 
 当前停止逻辑不是直接强杀 `ffmpeg`，而是先发送 `q`，让 `ffmpeg` 优雅写完封装信息后退出，所以正常情况下能完整收尾 MP4 文件。
 
-### 4. 如何彻底清理旧转写数据
+### 3. 如何彻底清理旧转写数据
 
 如果你是从旧版本升级上来的，想把历史 `summaries` 表和旧摘要目录一起删掉，可以执行：
 
