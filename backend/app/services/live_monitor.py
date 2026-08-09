@@ -1,6 +1,7 @@
 import time
 import logging
 from datetime import datetime
+from threading import Event
 from app.models import db, Anchor, Recording
 from app.services.live_discovery_service import live_discovery_service
 from app.services.notification_service import notification_service
@@ -35,6 +36,7 @@ class LiveMonitor:
         self.offline_confirmation_checks = max(1, int(os.getenv('OFFLINE_CONFIRMATION_CHECKS', 2)))
         self.keep_recording_on_discovery_error = os.getenv('KEEP_RECORDING_ON_DISCOVERY_ERROR', 'True').lower() == 'true'
         self.is_running = False
+        self.stop_event = Event()
         self.offline_check_counts = {}
         self.recent_recording_activity = {}
         self.headers = {
@@ -46,6 +48,9 @@ class LiveMonitor:
     def start_monitoring(self):
         """开始监测"""
         logger.info('Starting live monitor service')
+        if self.stop_event.is_set():
+            logger.info('Live monitor stop was requested before startup')
+            return
         self.is_running = True
         
         while self.is_running:
@@ -53,15 +58,19 @@ class LiveMonitor:
                 self.check_all_anchors()
                 sleep_seconds = self._get_sleep_interval()
                 logger.info(f'Checked all anchors, sleeping for {sleep_seconds} seconds')
-                time.sleep(sleep_seconds)
+                self.stop_event.wait(sleep_seconds)
             except Exception as e:
                 logger.error(f'Error in live monitor: {e}')
-                time.sleep(self._get_sleep_interval())
+                self.stop_event.wait(self._get_sleep_interval())
     
     def stop_monitoring(self):
         """停止监测"""
         logger.info('Stopping live monitor service')
         self.is_running = False
+        self.stop_event.set()
+
+    def reset_stop_signal(self):
+        self.stop_event.clear()
     
     def check_all_anchors(self):
         """检查所有关注的主播"""
@@ -74,10 +83,12 @@ class LiveMonitor:
                 try:
                     self.check_anchor(anchor)
                     # 避免请求过快，添加短暂延迟
-                    time.sleep(1)
+                    if self.stop_event.wait(1):
+                        break
                 except Exception as e:
                     logger.error(f'Error checking anchor {anchor.name}: {e}')
-                    time.sleep(1)
+                    if self.stop_event.wait(1):
+                        break
         except Exception as e:
             logger.error(f'Error checking all anchors: {e}')
     
@@ -88,6 +99,9 @@ class LiveMonitor:
         try:
             # 检查直播状态
             is_live, live_info = self._check_live_status(anchor)
+            if self.stop_event.is_set():
+                logger.info('Skipping anchor result because monitor shutdown is in progress')
+                return
             
             if is_live:
                 self._reset_offline_counter(anchor.id)
@@ -113,6 +127,7 @@ class LiveMonitor:
                         if recovered:
                             refreshed_recording = Recording.query.filter_by(id=existing_recording.id).first()
                             if refreshed_recording and refreshed_recording.status != 'recording':
+                                self._notify_recovered_recording(refreshed_recording)
                                 self.start_recording(anchor, live_info)
                                 return
 
@@ -228,6 +243,23 @@ class LiveMonitor:
             'processed': processed,
             'audio_sent': audio_sent,
         }
+
+    def _notify_recovered_recording(self, recording):
+        if not recording or recording.status != 'completed':
+            return False
+
+        sent = notification_service.send_recording_audio(recording.id)
+        if sent:
+            logger.info(
+                'Recovered recording audio notification sent for recording ID: %s',
+                recording.id,
+            )
+        else:
+            logger.warning(
+                'Recovered recording audio notification was not sent for recording ID: %s',
+                recording.id,
+            )
+        return sent
     
     def _check_live_status(self, anchor):
         """检查直播状态"""

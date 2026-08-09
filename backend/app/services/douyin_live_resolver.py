@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+from urllib.parse import urlparse
 
 import requests
 from dotenv import load_dotenv
@@ -43,8 +44,21 @@ class DouyinLiveResolver:
         anchor_info = self._extract_json_attr(page_html, 'data-anchor-info')
         room_info = self._extract_json_attr(page_html, 'data-room-info')
         urls = self._extract_stream_urls(page_html)
-        if not urls:
-            logger.error('No stream urls found in Douyin live page')
+        if not any(urls.values()):
+            if self._is_confirmed_offline_page(live_url, room_info):
+                return {
+                    'anchor': anchor_info or {},
+                    'room': room_info or {},
+                    'title': self._extract_title(page_html),
+                    'status': 'offline',
+                    'selected_profile': None,
+                    'flv_url': None,
+                    'hls_url': None,
+                    'lls_url': None,
+                    'all_stream_urls': {},
+                }
+
+            logger.error('No stream urls or offline evidence found in Douyin page')
             return None
 
         selected_hls = self._pick_preferred_url(urls.get('hls', []))
@@ -64,6 +78,22 @@ class DouyinLiveResolver:
             'lls_url': selected_lls,
             'all_stream_urls': urls,
         }
+
+    def _is_confirmed_offline_page(self, live_url, room_info):
+        """Treat a successfully loaded live-room page without streams as offline.
+
+        Profile and share pages without stream metadata are not enough evidence:
+        they may be challenge/error pages, so callers should keep an active
+        recording when those pages cannot be resolved.
+        """
+        if room_info:
+            return True
+
+        try:
+            hostname = (urlparse(live_url).hostname or '').lower()
+        except Exception:
+            return False
+        return hostname == 'live.douyin.com'
 
     def _fetch_page(self, live_url):
         try:

@@ -273,6 +273,19 @@ journalctl -u live-record-backend -f
 journalctl -u live-record-scheduler -f
 ```
 
+## 数据库备份
+
+调度器启动后会立即备份一次 SQLite 数据库，之后按 `BACKUP_INTERVAL`
+指定的秒数定期备份。备份保存在 `backend/backups/`，默认只保留最新 7 份。
+
+## 运行测试
+
+```bash
+cd /opt/live-record/backend
+source .venv/bin/activate
+python -m unittest discover -s tests -v
+```
+
 ## 更新流程
 
 ```bash

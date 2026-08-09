@@ -1,6 +1,7 @@
 import os
 import signal
 import subprocess
+import tempfile
 import time
 import logging
 from datetime import datetime, timedelta
@@ -21,6 +22,7 @@ class VideoRecorder:
         self.recording_quality = os.getenv('RECORDING_QUALITY', '720p')
         self.recording_mode = (os.getenv('RECORDING_MODE', 'video') or 'video').strip().lower()
         self.recording_processes = {}
+        self.recording_stderr_files = {}
         self.max_recording_duration = int(os.getenv('MAX_RECORDING_DURATION', 9000))  # 最大录制时长
         self.cleanup_video = os.getenv('CLEANUP_VIDEO', 'True').lower() == 'true'  # 是否清理视频文件
         self.recording_retention_days = int(os.getenv('RECORDING_RETENTION_DAYS', 7))
@@ -115,34 +117,38 @@ class VideoRecorder:
         os.makedirs(output_dir, exist_ok=True)
         cmd = self._build_recording_command(stream_url, output_path)
         
+        process = None
+        stderr_file = None
         try:
             if not stream_url:
                 logger.error('Missing stream url for recording %s', recording_id)
                 return False
 
             # 启动录制进程
+            stderr_file = tempfile.TemporaryFile(mode='w+t', encoding='utf-8')
             process = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=stderr_file,
                 text=True,
                 shell=False
             )
+            self.recording_processes[recording_id] = process
+            self.recording_stderr_files[recording_id] = stderr_file
 
             # Quick health-check: if ffmpeg exits immediately, record the real reason.
             time.sleep(self.startup_check_seconds)
             if process.poll() is not None:
-                error_output = (process.stderr.read() or '').strip()
+                error_output = self._read_process_stderr(process, recording_id)
                 logger.error(
                     'ffmpeg exited early for recording %s (code=%s): %s',
                     recording_id,
                     process.returncode,
                     error_output or 'no stderr output'
                 )
+                self._forget_recording_process(recording_id)
                 return False
-
-            self.recording_processes[recording_id] = process
             
             logger.info(
                 '%s recording started for recording ID: %s, output: %s',
@@ -153,19 +159,49 @@ class VideoRecorder:
             return True
         except FileNotFoundError:
             logger.error('ffmpeg not found, cannot start recording')
+            self._forget_recording_process(recording_id)
+            if stderr_file and not stderr_file.closed:
+                stderr_file.close()
             return False
         except Exception as e:
+            if process and process.poll() is None:
+                try:
+                    process.terminate()
+                    process.wait(timeout=5)
+                except Exception:
+                    process.kill()
+                    process.wait(timeout=5)
             logger.error(f'Error starting video recording: {e}')
+            self._forget_recording_process(recording_id)
+            if stderr_file and not stderr_file.closed:
+                stderr_file.close()
             return False
 
-    def _read_process_stderr(self, process):
-        if not process.stderr or process.stderr.closed:
+    def _read_process_stderr(self, process, recording_id=None):
+        stderr_stream = self.recording_stderr_files.get(recording_id)
+        if stderr_stream is None:
+            stderr_stream = process.stderr
+        if not stderr_stream or stderr_stream.closed:
             return ''
 
         try:
-            return (process.stderr.read() or '').strip()
+            stderr_stream.flush()
+            stderr_stream.seek(0)
+            return (stderr_stream.read() or '').strip()
         except Exception:
             return ''
+
+    def _forget_recording_process(self, recording_id):
+        process = self.recording_processes.pop(recording_id, None)
+        stderr_file = self.recording_stderr_files.pop(recording_id, None)
+
+        if process and process.stdin and not process.stdin.closed:
+            try:
+                process.stdin.close()
+            except Exception:
+                pass
+        if stderr_file and not stderr_file.closed:
+            stderr_file.close()
 
     def _is_valid_recording_duration(self, duration):
         if duration is None:
@@ -182,15 +218,16 @@ class VideoRecorder:
             process = self.recording_processes[recording_id]
             try:
                 if process.poll() is not None:
-                    self.recording_processes.pop(recording_id, None)
                     if process.returncode == 0:
+                        self._forget_recording_process(recording_id)
                         logger.info(
                             'Recording had already finished naturally for recording ID: %s',
                             recording_id
                         )
                         return True
 
-                    error_output = self._read_process_stderr(process)
+                    error_output = self._read_process_stderr(process, recording_id)
+                    self._forget_recording_process(recording_id)
                     logger.warning(
                         'Recording process had already exited for recording ID %s (code=%s): %s',
                         recording_id,
@@ -206,7 +243,7 @@ class VideoRecorder:
                         process.stdin.flush()
                     except BrokenPipeError:
                         if process.poll() is not None and process.returncode == 0:
-                            self.recording_processes.pop(recording_id, None)
+                            self._forget_recording_process(recording_id)
                             logger.info(
                                 'Recording finished before stop signal was delivered for recording ID: %s',
                                 recording_id
@@ -215,10 +252,9 @@ class VideoRecorder:
                         raise
 
                 process.wait(timeout=15)
-                # 从记录中移除
-                self.recording_processes.pop(recording_id, None)
                 if process.returncode not in (0, None):
-                    error_output = self._read_process_stderr(process)
+                    error_output = self._read_process_stderr(process, recording_id)
+                    self._forget_recording_process(recording_id)
                     logger.warning(
                         'Recording exited with non-zero code for recording ID %s (code=%s): %s',
                         recording_id,
@@ -226,6 +262,7 @@ class VideoRecorder:
                         error_output or 'no stderr output'
                     )
                     return False
+                self._forget_recording_process(recording_id)
                 logger.info(f'Recording stopped for recording ID: {recording_id}')
                 return True
             except Exception as e:
@@ -234,8 +271,13 @@ class VideoRecorder:
                     process.wait(timeout=10)
                 except Exception:
                     pass
-                self.recording_processes.pop(recording_id, None)
-                logger.error(f'Error stopping video recording: {e}')
+                error_output = self._read_process_stderr(process, recording_id)
+                self._forget_recording_process(recording_id)
+                logger.error(
+                    'Error stopping video recording: %s; ffmpeg stderr: %s',
+                    e,
+                    error_output or 'no stderr output',
+                )
                 return False
         else:
             recording = Recording.query.filter_by(id=recording_id).first()
@@ -274,7 +316,19 @@ class VideoRecorder:
         """获取录制状态"""
         if recording_id in self.recording_processes:
             process = self.recording_processes[recording_id]
-            return process.poll() is None  # None表示进程仍在运行
+            if process.poll() is None:
+                return True
+
+            if process.returncode not in (0, None):
+                error_output = self._read_process_stderr(process, recording_id)
+                logger.warning(
+                    'Recording process exited for recording ID %s (code=%s): %s',
+                    recording_id,
+                    process.returncode,
+                    error_output or 'no stderr output',
+                )
+            self._forget_recording_process(recording_id)
+            return False
         try:
             recording = Recording.query.filter_by(id=recording_id).first()
         except Exception:
